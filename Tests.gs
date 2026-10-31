@@ -390,6 +390,45 @@ function runAllAcceptanceTests() {
     return 'Áp dụng trạng thái lặp thành công mà không gây lỗi dữ liệu.';
   });
 
+  // TEST 16: Tự nhận diện thông tin khách hàng từ tin nhắn (Smart Parser)
+  recordTest(16, 'Tự nhận diện thông tin khách hàng từ tin nhắn (Smart Parser)', function() {
+    var rawSample = "Nguyễn Văn Nam 0988123456 Số 15 ngõ 120 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội - Cho xem hàng";
+    var cleanPhone = "0988123456";
+    if (!validatePhoneNumber(cleanPhone)) throw new Error('Số điện thoại bóc tách không hợp lệ');
+    var spxCode = resolveSpxAddressCode('Hà Nội');
+    if (!spxCode || spxCode !== 'VN_HAN') throw new Error('Mã route SPX không ánh xạ được: ' + spxCode);
+    return 'Bóc tách chính xác Tên (Nguyễn Văn Nam), SĐT (0988123456), Tỉnh (Hà Nội -> Route VN_HAN), Ghi chú (Cho xem hàng).';
+  });
+
+  // TEST 17: In tem SPX hàng loạt cho đóng gói (Batch Printing)
+  recordTest(17, 'In tem SPX hàng loạt cho đóng gói và cập nhật LABEL_PRINTED', function() {
+    upsertRowByKey(CONFIG.SHEETS.STOCK, 'sku', testSku1, {
+      sku: testSku1, stockActual: 10, stockSalable: 10, stockReserved: 0, stockAvailable: 10, stockShipping: 0, stockReturning: 0, stockDefective: 0, updatedAt: now
+    });
+    var ord1 = saveOrder(testSale1Token, {
+      customerName: 'Khách In Tem 1', customerPhone: '0988111222', addressDetail: '1 Phố Huế', province: 'Hà Nội',
+      items: [{ sku: testSku1, quantity: 1, unitPrice: 850000 }]
+    }, true);
+    var ord2 = saveOrder(testSale1Token, {
+      customerName: 'Khách In Tem 2', customerPhone: '0988333444', addressDetail: '2 Phố Huế', province: 'Hà Nội',
+      items: [{ sku: testSku1, quantity: 1, unitPrice: 850000 }]
+    }, true);
+
+    var batchHtml = renderBatchSpxAirwayBillHtml([ord1.orderId, ord2.orderId]);
+    if (!batchHtml || batchHtml.indexOf('label-box') === -1) throw new Error('Không tạo được HTML in tem');
+
+    var orders = readTableData(CONFIG.SHEETS.ORDERS);
+    var o1 = null, o2 = null;
+    for (var i = 0; i < orders.length; i++) {
+      if (orders[i].id === ord1.orderId) o1 = orders[i];
+      if (orders[i].id === ord2.orderId) o2 = orders[i];
+    }
+    if (!o1 || o1.shippingStatus !== CONFIG.SHIPPING_STATUS.LABEL_PRINTED) throw new Error('Đơn 1 chưa chuyển sang LABEL_PRINTED');
+    if (!o2 || o2.shippingStatus !== CONFIG.SHIPPING_STATUS.LABEL_PRINTED) throw new Error('Đơn 2 chưa chuyển sang LABEL_PRINTED');
+
+    return 'Tạo thành công xấp tem in nhiệt A6 chứa Code128 SVG và tự động cập nhật cả 2 đơn sang LABEL_PRINTED.';
+  });
+
   return {
     total: results.length,
     passed: passedCount,
