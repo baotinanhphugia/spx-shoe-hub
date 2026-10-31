@@ -1909,6 +1909,167 @@ SPXVN9876543210,650000,28000,622000"></textarea>
   // -------------------------------------------------------------
   // VIEW: VẬN ĐƠN SPX & THỦ KHO (SHIPMENTS)
   // -------------------------------------------------------------
+    // -------------------------------------------------------------
+  // VIEW: SẢN PHẨM & BIẾN THỂ (PRODUCTS & VARIANTS)
+  // -------------------------------------------------------------
+  function loadProductsCatalogTable() {
+    var tbody = document.getElementById('productsCatalogTableBody');
+    if (!tbody) return;
+    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Đang tải danh mục sản phẩm từ Google Sheets...</td></tr>';
+
+    callServer('apiGetProductsCatalog', [state.sessionToken], function(catalog) {
+      state.catalog = catalog || [];
+      renderProductsCatalogTable(state.catalog);
+    }, function(err) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:red;padding:20px;">Lỗi tải danh mục: ' + err + '</td></tr>';
+    });
+  }
+
+  function renderProductsCatalogTable(catalog) {
+    var tbody = document.getElementById('productsCatalogTableBody');
+    if (!tbody) return;
+
+    if (!catalog || catalog.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#777;">Chưa có sản phẩm nào trong hệ thống. Nhấn "+ Thêm Mẫu Mới" để tạo.</td></tr>';
+      return;
+    }
+
+    var html = '';
+    catalog.forEach(function(p) {
+      var imgTag = p.imageUrl ? '<img src="' + p.imageUrl + '" style="width:48px;height:48px;object-fit:cover;border-radius:4px;border:1px solid #ddd;" onerror="this.src=\'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2248%22 height=%2248%22><rect width=%22100%%22 height=%22100%%22 fill=%22%23eee%22/><text x=%2250%%22 y=%2250%%22 text-anchor=%22middle%22 dy=%22.3em%22 fill=%22%23aaa%22 font-size=%2210%22>No img</text></svg>\'">' : '<span style="color:#aaa;font-size:11px;">Không ảnh</span>';
+      var priceStr = (Number(p.defaultPrice) || 0).toLocaleString('vi-VN') + ' đ';
+      var weightStr = (Number(p.refWeightG) || 500) + ' g';
+      var varCount = (p.variants || []).length;
+      var statusBadge = p.status === 'ACTIVE' ? '<span class="badge badge-confirmed">Đang bán</span>' : '<span class="badge badge-cancelled">Ngừng bán</span>';
+
+      html += '<tr>' +
+        '<td>' + imgTag + '</td>' +
+        '<td><strong>' + p.modelCode + '</strong></td>' +
+        '<td><strong>' + p.name + '</strong></td>' +
+        '<td><span style="color:#555;">' + (p.category || 'Giày') + '</span></td>' +
+        '<td><span style="color:var(--spx-orange);font-weight:bold;">' + priceStr + '</span></td>' +
+        '<td>' + weightStr + '</td>' +
+        '<td><span class="badge" style="background:#E3F2FD;color:#1565C0;font-weight:600;">' + varCount + ' SKU</span></td>' +
+        '<td>' + statusBadge + '</td>' +
+      '</tr>';
+    });
+    tbody.innerHTML = html;
+  }
+
+  function openAddProductModal() {
+    document.getElementById('newProductModelCode').value = '';
+    document.getElementById('newProductName').value = '';
+    document.getElementById('newProductPrice').value = '';
+    document.getElementById('newProductImageUrl').value = '';
+    openModal('addProductModal');
+  }
+
+  function saveNewProduct() {
+    var code = (document.getElementById('newProductModelCode').value || '').trim().toUpperCase();
+    var name = (document.getElementById('newProductName').value || '').trim();
+    var cat = document.getElementById('newProductCategory').value;
+    var weight = Number(document.getElementById('newProductWeight').value) || 700;
+    var price = Number(document.getElementById('newProductPrice').value) || 0;
+    var img = (document.getElementById('newProductImageUrl').value || '').trim();
+
+    if (!code || !name || !price) {
+      showToast('Vui lòng điền đầy đủ Mã mẫu, Tên và Giá bán chuẩn.', 'error');
+      return;
+    }
+
+    var payload = {
+      modelCode: code,
+      name: name,
+      category: cat,
+      defaultPrice: price,
+      refWeightG: weight,
+      imageUrl: img,
+      status: 'ACTIVE'
+    };
+
+    callServer('apiSaveProduct', [state.sessionToken, payload], function(res) {
+      showToast('Đã lưu mẫu giày mới: ' + code, 'success');
+      closeModal('addProductModal');
+      loadProductsCatalogTable();
+      loadCatalogData();
+    });
+  }
+
+  function openBatchVariantModal() {
+    var sel = document.getElementById('batchModelSelect');
+    sel.innerHTML = '<option value="">-- Chọn Mẫu --</option>';
+    (state.catalog || []).forEach(function(p) {
+      sel.innerHTML += '<option value="' + p.modelCode + '">' + p.modelCode + ' - ' + p.name + '</option>';
+    });
+    sel.onchange = function() {
+      var m = (state.catalog || []).find(function(x) { return x.modelCode === sel.value; });
+      if (m) {
+        document.getElementById('batchPriceInput').value = m.defaultPrice || 0;
+        document.getElementById('batchWeightInput').value = m.refWeightG || 700;
+      }
+    };
+    openModal('batchVariantModal');
+  }
+
+  function submitBatchVariants() {
+    var modelCode = document.getElementById('batchModelSelect').value;
+    var colorsRaw = (document.getElementById('batchColorsInput').value || '').trim();
+    var sizesRaw = (document.getElementById('batchSizesInput').value || '').trim();
+    var price = Number(document.getElementById('batchPriceInput').value) || 0;
+    var weight = Number(document.getElementById('batchWeightInput').value) || 700;
+
+    if (!modelCode || !colorsRaw || !sizesRaw) {
+      showToast('Vui lòng chọn mẫu và nhập đầy đủ màu, size.', 'error');
+      return;
+    }
+
+    var colors = colorsRaw.split(',').map(function(s) { return s.trim().toUpperCase(); }).filter(Boolean);
+    var sizes = sizesRaw.split(',').map(function(s) { return s.trim(); }).filter(Boolean);
+
+    callServer('apiBatchCreateVariants', [state.sessionToken, modelCode, colors, sizes, price, weight], function(res) {
+      showToast('Đã sinh các biến thể SKU thành công!', 'success');
+      closeModal('batchVariantModal');
+      loadProductsCatalogTable();
+      loadCatalogData();
+    });
+  }
+
+  function openAddStaffModal() {
+    document.getElementById('newStaffName').value = '';
+    document.getElementById('newStaffEmail').value = '';
+    document.getElementById('newStaffPhone').value = '';
+    document.getElementById('newStaffPin').value = '123456';
+    openModal('addStaffModal');
+  }
+
+  function saveNewStaff() {
+    var name = (document.getElementById('newStaffName').value || '').trim();
+    var email = (document.getElementById('newStaffEmail').value || '').trim().toLowerCase();
+    var phone = (document.getElementById('newStaffPhone').value || '').trim();
+    var role = document.getElementById('newStaffRole').value;
+    var pin = (document.getElementById('newStaffPin').value || '').trim();
+
+    if (!name || !email || !pin) {
+      showToast('Vui lòng điền họ tên, email và mã PIN.', 'error');
+      return;
+    }
+
+    var payload = {
+      fullName: name,
+      email: email,
+      phone: phone,
+      role: role,
+      pin: pin,
+      status: 'ACTIVE'
+    };
+
+    callServer('apiSaveStaffUser', [state.sessionToken, payload], function() {
+      showToast('Đã tạo nhân sự mới thành công!', 'success');
+      closeModal('addStaffModal');
+      loadSettingsPage();
+    });
+  }
+
   function loadWarehouseShipments() {
     callServer('apiGetQueueSummary', [state.sessionToken], function(q) {
       document.getElementById('queuePendingCount').innerText = q.counts.pending;
