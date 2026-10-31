@@ -235,6 +235,23 @@ function updateRowByKey(sheetName, keyField, keyValue, updateObj) {
   return false;
 }
 
+/**
+ * Cập nhật một hàng theo khóa chính, nếu chưa tồn tại thì tự động thêm mới (Upsert)
+ */
+function upsertRowByKey(sheetName, keyField, keyValue, updateObj) {
+  var updated = updateRowByKey(sheetName, keyField, keyValue, updateObj);
+  if (!updated) {
+    var newObj = {};
+    for (var k in updateObj) {
+      if (updateObj.hasOwnProperty(k)) newObj[k] = updateObj[k];
+    }
+    newObj[keyField] = keyValue;
+    insertRow(sheetName, newObj);
+    return true;
+  }
+  return true;
+}
+
 
 /**
  * Xóa một hàng theo trường khóa chính
