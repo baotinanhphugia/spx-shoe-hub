@@ -585,6 +585,74 @@
         </div>
       </section>
 
+      <!-- SCREEN: DANH BẠ KHÁCH HÀNG (CUSTOMERS TỪ GOOGLE SHEETS) -->
+      <section class="screen-view" id="view-customers">
+        <div class="card">
+          <div class="card-title">
+            <span>Danh bạ Khách hàng & Tích lũy (Google Sheets)</span>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="loadCustomersList()">🔄 Làm mới</button>
+              <button class="btn btn-primary btn-sm" onclick="openAddCustomerModal()">+ Thêm khách hàng</button>
+            </div>
+          </div>
+
+          <!-- Thống kê nhanh khách hàng -->
+          <div class="grid-4" style="margin-bottom:16px;">
+            <div class="stat-card" style="border-left:4px solid var(--spx-orange);">
+              <div class="stat-num" id="custTotalCount">0</div>
+              <div class="stat-label">Tổng khách hàng</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #f59e0b;">
+              <div class="stat-num" id="custVipCount" style="color:#d97706;">0</div>
+              <div class="stat-label">Khách VIP (≥ 3tr)</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #10b981;">
+              <div class="stat-num" id="custLoyalCount" style="color:#059669;">0</div>
+              <div class="stat-label">Khách Thân thiết (≥ 2 đơn)</div>
+            </div>
+            <div class="stat-card" style="border-left:4px solid #3b82f6;">
+              <div class="stat-num" id="custTotalRevenue" style="color:#2563eb;font-size:18px;">0 đ</div>
+              <div class="stat-label">Tổng doanh số tích lũy</div>
+            </div>
+          </div>
+
+          <!-- Bộ lọc và tìm kiếm khách hàng -->
+          <div class="grid-3" style="margin-bottom:14px;">
+            <input type="text" class="form-control" id="custSearchInput" placeholder="Tìm kiếm theo Tên, SĐT, Tỉnh/TP, Địa chỉ..." oninput="filterCustomersTable()">
+            <select class="form-control" id="custTagFilter" onchange="filterCustomersTable()">
+              <option value="">-- Tất cả phân hạng --</option>
+              <option value="VIP">Khách VIP</option>
+              <option value="Thân thiết">Khách Thân thiết</option>
+              <option value="Thường">Khách Thường</option>
+            </select>
+            <button class="btn btn-secondary" onclick="filterCustomersTable()">🔍 Tìm kiếm</button>
+          </div>
+
+          <!-- Bảng danh sách khách hàng -->
+          <div class="table-responsive">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Mã KH</th>
+                  <th>Họ tên</th>
+                  <th>Phân hạng</th>
+                  <th>Số điện thoại</th>
+                  <th>Địa chỉ</th>
+                  <th>Tỉnh / TP</th>
+                  <th style="text-align:right;">Số đơn</th>
+                  <th style="text-align:right;">Tổng chi tiêu</th>
+                  <th>Đơn gần nhất</th>
+                  <th style="text-align:center;">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody id="customersTableBody">
+                <tr><td colspan="10" style="text-align:center;padding:24px;">Đang tải danh sách khách hàng từ Google Sheets...</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
       <!-- SCREEN 4: KHO HÀNG (INVENTORY MATRIX) -->
       <section class="screen-view" id="view-inventory">
         <div class="card">
