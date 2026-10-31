@@ -533,6 +533,7 @@
                   <th>Cân nặng</th>
                   <th>Số biến thể SKU</th>
                   <th>Trạng thái</th>
+                  <th style="text-align:center;">Thao tác</th>
                 </tr>
               </thead>
               <tbody id="productsCatalogTableBody">
@@ -856,17 +857,19 @@ SPXVN9876543210,650000,28000,622000"></textarea>
 </div>
 
 <!-- MODAL: CHI TIẾT ĐƠN HÀNG & IN TEM -->
-  <!-- MODAL: THÊM SẢN PHẨM MẪU MỚI -->
+  <!-- MODAL: THÊM / SỬA MẪU SẢN PHẨM -->
   <div class="modal-backdrop" id="addProductModal">
-    <div class="modal-box" style="max-width:500px;">
+    <div class="modal-box" style="max-width:520px;">
       <div class="modal-header">
-        <div class="modal-title">👟 Thêm Mẫu Giày Mới</div>
+        <div class="modal-title" id="productModalTitle">👟 Thêm Mẫu Giày Mới</div>
         <button class="btn btn-secondary btn-sm" onclick="closeModal('addProductModal')">✕</button>
       </div>
       <div style="padding:16px;">
+        <input type="hidden" id="editProductId" value="">
         <div class="form-group">
           <label class="form-label">Mã Mẫu (Model Code) *</label>
           <input type="text" class="form-control" id="newProductModelCode" placeholder="Ví dụ: CC03, TC05...">
+          <small id="modelCodeHint" style="color:#777;display:none;">Mã mẫu không thể đổi khi chỉnh sửa để bảo đảm tính toàn vẹn SKU.</small>
         </div>
         <div class="form-group">
           <label class="form-label">Tên sản phẩm *</label>
@@ -887,9 +890,18 @@ SPXVN9876543210,650000,28000,622000"></textarea>
             <input type="number" class="form-control" id="newProductWeight" value="700">
           </div>
         </div>
-        <div class="form-group">
-          <label class="form-label">Giá bán chuẩn (VND) *</label>
-          <input type="number" class="form-control" id="newProductPrice" placeholder="Ví dụ: 850000">
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Giá bán chuẩn (VND) *</label>
+            <input type="number" class="form-control" id="newProductPrice" placeholder="Ví dụ: 850000">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Trạng thái bán</label>
+            <select class="form-control" id="newProductStatus">
+              <option value="ACTIVE">Đang bán</option>
+              <option value="INACTIVE">Ngừng bán</option>
+            </select>
+          </div>
         </div>
         <div class="form-group">
           <label class="form-label">URL Ảnh mẫu (Link hình ảnh)</label>
@@ -897,7 +909,104 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         </div>
         <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
           <button type="button" class="btn btn-secondary" onclick="closeModal('addProductModal')">Hủy</button>
-          <button type="button" class="btn btn-primary" onclick="saveNewProduct()">Lưu Mẫu Mới</button>
+          <button type="button" class="btn btn-primary" id="btnSaveProduct" onclick="saveProductForm()">Lưu Mẫu Giày</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: DANH SÁCH BIẾN THỂ SKU CỦA MẪU -->
+  <div class="modal-backdrop" id="variantsListModal">
+    <div class="modal-box" style="max-width:700px;">
+      <div class="modal-header">
+        <div class="modal-title" id="variantsModalTitle">👟 Chi tiết Biến thể SKU</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('variantsListModal')">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div class="table-container" style="max-height:400px;overflow-y:auto;">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Mã SKU</th>
+                <th>Màu sắc</th>
+                <th>Size</th>
+                <th>Giá bán</th>
+                <th style="text-align:right;">Tồn khả dụng</th>
+                <th>Trạng thái</th>
+                <th style="text-align:center;">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody id="variantsListTableBody"></tbody>
+          </table>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;">
+          <small style="color:#777;">* Xóa biến thể sẽ đồng thời xóa tồn kho liên quan nếu chưa có đơn hàng.</small>
+          <button type="button" class="btn btn-secondary" onclick="closeModal('variantsListModal')">Đóng</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: THÊM / SỬA KHÁCH HÀNG -->
+  <div class="modal-backdrop" id="customerModal">
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <div class="modal-title" id="customerModalTitle">👥 Thêm Khách Hàng Mới</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('customerModal')">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <input type="hidden" id="editCustomerId" value="">
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Tên khách hàng *</label>
+            <input type="text" class="form-control" id="custModalName" placeholder="Nguyễn Văn A">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Số điện thoại *</label>
+            <input type="tel" class="form-control" id="custModalPhone" placeholder="0988123456">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Địa chỉ chi tiết (Số nhà, đường...)</label>
+          <input type="text" class="form-control" id="custModalAddress" placeholder="Số 123 Đường ABC...">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Tỉnh / Thành phố</label>
+            <select class="form-control" id="custModalProvince">
+              <option value="">-- Chọn Tỉnh/Thành --</option>
+              <option value="Hà Nội">Hà Nội</option>
+              <option value="TP Hồ Chí Minh">TP Hồ Chí Minh</option>
+              <option value="Đà Nẵng">Đà Nẵng</option>
+              <option value="Hải Phòng">Hải Phòng</option>
+              <option value="Cần Thơ">Cần Thơ</option>
+              <option value="Bắc Ninh">Bắc Ninh</option>
+              <option value="Bình Dương">Bình Dương</option>
+              <option value="Đồng Nai">Đồng Nai</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Phường / Xã</label>
+            <input type="text" class="form-control" id="custModalWard" placeholder="Phường/Xã">
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Phân hạng khách hàng</label>
+            <select class="form-control" id="custModalTag">
+              <option value="Thường">Thường</option>
+              <option value="Thân thiết">Thân thiết</option>
+              <option value="VIP">Hạng VIP</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Ghi chú</label>
+            <input type="text" class="form-control" id="custModalNotes" placeholder="Ghi chú sở thích, size giày...">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('customerModal')">Hủy</button>
+          <button type="button" class="btn btn-primary" onclick="saveCustomerForm()">Lưu Khách Hàng</button>
         </div>
       </div>
     </div>
@@ -1282,6 +1391,16 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         return { action: 'GET_STAFF', payload: {}, sessionToken: token };
       case 'apiSaveStaffUser':
         return { action: 'SAVE_STAFF', payload: args[1], sessionToken: token };
+      case 'apiDeleteProduct':
+        return { action: 'DELETE_PRODUCT', payload: { productId: args[1] }, sessionToken: token };
+      case 'apiDeleteVariant':
+        return { action: 'DELETE_VARIANT', payload: { sku: args[1] }, sessionToken: token };
+      case 'apiSaveCustomer':
+        return { action: 'SAVE_CUSTOMER', payload: { customer: args[1] }, sessionToken: token };
+      case 'apiDeleteCustomer':
+        return { action: 'DELETE_CUSTOMER', payload: { customerId: args[1] }, sessionToken: token };
+      case 'apiDeleteStaff':
+        return { action: 'DELETE_STAFF', payload: { staffId: args[1] }, sessionToken: token };
       case 'apiGetSettings':
         return { action: 'GET_SETTINGS', payload: {}, sessionToken: token };
       case 'apiSaveSettings':
@@ -1560,8 +1679,10 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         '<td style="text-align:right;"><strong>' + (c.totalOrders || 0) + '</strong></td>' +
         '<td style="text-align:right;color:var(--spx-orange);font-weight:bold;">' + spentStr + '</td>' +
         '<td><small>' + lastOrderStr + '</small></td>' +
-        '<td style="text-align:center;">' +
-          '<button class="btn btn-primary btn-sm" onclick="quickCreateOrderForCustomer(\'' + (c.phone || '') + '\')" title="Tạo đơn hàng mới cho khách này">📝 Tạo đơn</button>' +
+        '<td style="text-align:center;white-space:nowrap;">' +
+          '<button class="btn btn-primary btn-sm" style="margin-right:4px;" onclick="quickCreateOrderForCustomer(\'' + (c.phone || '') + '\')" title="Tạo đơn hàng mới cho khách này">📝 Tạo đơn</button>' +
+          '<button class="btn btn-secondary btn-sm" style="margin-right:4px;" onclick="openEditCustomerModal(\'' + c.id + '\')" title="Chỉnh sửa thông tin khách">✏️ Sửa</button>' +
+          '<button class="btn btn-secondary btn-sm" style="color:var(--spx-danger);border-color:#ffcdd2;" onclick="deleteCustomerAction(\'' + c.id + '\', \'' + (c.name || '') + '\')" title="Xóa khách hàng">🗑️ Xóa</button>' +
         '</td>' +
       '</tr>';
     });
@@ -2041,18 +2162,18 @@ SPXVN9876543210,650000,28000,622000"></textarea>
   // VIEW: VẬN ĐƠN SPX & THỦ KHO (SHIPMENTS)
   // -------------------------------------------------------------
     // -------------------------------------------------------------
-  // VIEW: SẢN PHẨM & BIẾN THỂ (PRODUCTS & VARIANTS)
+  // VIEW: SẢN PHẨM & BIẾN THỂ (THÊM - SỬA - XÓA)
   // -------------------------------------------------------------
   function loadProductsCatalogTable() {
     var tbody = document.getElementById('productsCatalogTableBody');
     if (!tbody) return;
-    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:20px;">Đang tải danh mục sản phẩm từ Google Sheets...</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">Đang tải danh mục sản phẩm từ Google Sheets...</td></tr>';
 
     callServer('apiGetProductsCatalog', [state.sessionToken], function(catalog) {
       state.catalog = catalog || [];
       renderProductsCatalogTable(state.catalog);
     }, function(err) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:red;padding:20px;">Lỗi tải danh mục: ' + err + '</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:red;padding:20px;">Lỗi tải danh mục: ' + err + '</td></tr>';
     });
   }
 
@@ -2061,7 +2182,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     if (!tbody) return;
 
     if (!catalog || catalog.length === 0) {
-      tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:24px;color:#777;">Chưa có sản phẩm nào trong hệ thống. Nhấn "+ Thêm Mẫu Mới" để tạo.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;color:#777;">Chưa có sản phẩm nào trong hệ thống. Nhấn "+ Thêm Mẫu Mới" để tạo.</td></tr>';
       return;
     }
 
@@ -2080,27 +2201,60 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         '<td><span style="color:#555;">' + (p.category || 'Giày') + '</span></td>' +
         '<td><span style="color:var(--spx-orange);font-weight:bold;">' + priceStr + '</span></td>' +
         '<td>' + weightStr + '</td>' +
-        '<td><span class="badge" style="background:#E3F2FD;color:#1565C0;font-weight:600;">' + varCount + ' SKU</span></td>' +
+        '<td><button class="btn btn-secondary btn-sm" style="padding:2px 8px;font-size:11px;" onclick="viewVariantsModal(\'' + p.modelCode + '\')">🔍 ' + varCount + ' SKU</button></td>' +
         '<td>' + statusBadge + '</td>' +
+        '<td style="text-align:center;white-space:nowrap;">' +
+          '<button class="btn btn-secondary btn-sm" style="margin-right:4px;" onclick="editProduct(\'' + p.id + '\')" title="Chỉnh sửa sản phẩm">✏️ Sửa</button>' +
+          '<button class="btn btn-secondary btn-sm" style="color:var(--spx-danger);border-color:#ffcdd2;" onclick="deleteProductAction(\'' + p.id + '\', \'' + p.modelCode + '\')" title="Xóa mẫu giày">🗑️ Xóa</button>' +
+        '</td>' +
       '</tr>';
     });
     tbody.innerHTML = html;
   }
 
   function openAddProductModal() {
+    document.getElementById('editProductId').value = '';
+    document.getElementById('productModalTitle').innerText = '👟 Thêm Mẫu Giày Mới';
     document.getElementById('newProductModelCode').value = '';
+    document.getElementById('newProductModelCode').disabled = false;
+    document.getElementById('modelCodeHint').style.display = 'none';
     document.getElementById('newProductName').value = '';
+    document.getElementById('newProductCategory').value = 'Giày cao cổ';
+    document.getElementById('newProductWeight').value = '700';
     document.getElementById('newProductPrice').value = '';
+    document.getElementById('newProductStatus').value = 'ACTIVE';
     document.getElementById('newProductImageUrl').value = '';
+    document.getElementById('btnSaveProduct').innerText = 'Lưu Mẫu Giày';
     openModal('addProductModal');
   }
 
-  function saveNewProduct() {
+  function editProduct(productId) {
+    var p = (state.catalog || []).find(function(x) { return x.id === productId || x.modelCode === productId; });
+    if (!p) return;
+
+    document.getElementById('editProductId').value = p.id;
+    document.getElementById('productModalTitle').innerText = '✏️ Chỉnh Sửa Mẫu Giày: ' + p.modelCode;
+    document.getElementById('newProductModelCode').value = p.modelCode;
+    document.getElementById('newProductModelCode').disabled = true;
+    document.getElementById('modelCodeHint').style.display = 'block';
+    document.getElementById('newProductName').value = p.name || '';
+    document.getElementById('newProductCategory').value = p.category || 'Giày cao cổ';
+    document.getElementById('newProductWeight').value = p.refWeightG || 700;
+    document.getElementById('newProductPrice').value = p.defaultPrice || '';
+    document.getElementById('newProductStatus').value = p.status || 'ACTIVE';
+    document.getElementById('newProductImageUrl').value = p.imageUrl || '';
+    document.getElementById('btnSaveProduct').innerText = 'Cập Nhật Mẫu';
+    openModal('addProductModal');
+  }
+
+  function saveProductForm() {
+    var id = document.getElementById('editProductId').value;
     var code = (document.getElementById('newProductModelCode').value || '').trim().toUpperCase();
     var name = (document.getElementById('newProductName').value || '').trim();
     var cat = document.getElementById('newProductCategory').value;
     var weight = Number(document.getElementById('newProductWeight').value) || 700;
     var price = Number(document.getElementById('newProductPrice').value) || 0;
+    var status = document.getElementById('newProductStatus').value;
     var img = (document.getElementById('newProductImageUrl').value || '').trim();
 
     if (!code || !name || !price) {
@@ -2109,20 +2263,80 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     }
 
     var payload = {
+      id: id,
       modelCode: code,
       name: name,
       category: cat,
       defaultPrice: price,
       refWeightG: weight,
       imageUrl: img,
-      status: 'ACTIVE'
+      status: status
     };
 
     callServer('apiSaveProduct', [state.sessionToken, payload], function(res) {
-      showToast('Đã lưu mẫu giày mới: ' + code, 'success');
+      showToast('Đã lưu mẫu giày: ' + code, 'success');
       closeModal('addProductModal');
       loadProductsCatalogTable();
       loadCatalogData();
+    });
+  }
+
+  function deleteProductAction(productId, modelCode) {
+    if (!confirm('Bạn có chắc chắn muốn XÓA mẫu giày "' + modelCode + '" cùng toàn bộ các biến thể SKU trong kho?\nHành động này không thể hoàn tác!')) {
+      return;
+    }
+
+    callServer('apiDeleteProduct', [state.sessionToken, productId], function(res) {
+      showToast(res.message || ('Đã xóa mẫu giày ' + modelCode), 'success');
+      loadProductsCatalogTable();
+      loadCatalogData();
+      if (document.getElementById('view-inventory').classList.contains('active')) {
+        loadInventoryMatrix();
+      }
+    });
+  }
+
+  function viewVariantsModal(modelCode) {
+    var p = (state.catalog || []).find(function(x) { return x.modelCode === modelCode; });
+    if (!p) return;
+
+    document.getElementById('variantsModalTitle').innerText = '👟 Danh sách Biến thể SKU - Mẫu ' + p.modelCode + ' (' + p.name + ')';
+    var tbody = document.getElementById('variantsListTableBody');
+    tbody.innerHTML = '';
+
+    var vars = p.variants || [];
+    if (vars.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:16px;color:#777;">Chưa có biến thể nào cho mẫu này. Nhấn "Sinh Size Hàng Loạt" để tạo.</td></tr>';
+    } else {
+      vars.forEach(function(v) {
+        var avail = (v.stock && v.stock.available !== undefined) ? v.stock.available : 0;
+        var pStr = (Number(v.defaultPrice) || p.defaultPrice || 0).toLocaleString('vi-VN') + ' đ';
+        tbody.innerHTML += '<tr>' +
+          '<td><code>' + v.sku + '</code></td>' +
+          '<td>' + v.color + '</td>' +
+          '<td><strong>Size ' + v.size + '</strong></td>' +
+          '<td>' + pStr + '</td>' +
+          '<td style="text-align:right;"><span class="badge" style="background:#E8F5E9;color:#2E7D32;font-weight:700;">' + avail + '</span></td>' +
+          '<td><span class="badge ' + (v.status === 'ACTIVE' ? 'badge-confirmed' : 'badge-cancelled') + '">' + (v.status === 'ACTIVE' ? 'Đang bán' : 'Ngừng') + '</span></td>' +
+          '<td style="text-align:center;">' +
+            '<button class="btn btn-secondary btn-sm" style="color:var(--spx-danger);border-color:#ffcdd2;padding:2px 8px;font-size:11px;" onclick="deleteVariantAction(\'' + v.sku + '\', \'' + modelCode + '\')">Xóa</button>' +
+          '</td>' +
+        '</tr>';
+      });
+    }
+    openModal('variantsListModal');
+  }
+
+  function deleteVariantAction(sku, modelCode) {
+    if (!confirm('Bạn có chắc muốn xóa biến thể SKU: ' + sku + ' khỏi hệ thống?')) return;
+
+    callServer('apiDeleteVariant', [state.sessionToken, sku], function(res) {
+      showToast(res.message || ('Đã xóa SKU ' + sku), 'success');
+      callServer('apiGetProductsCatalog', [state.sessionToken], function(catalog) {
+        state.catalog = catalog || [];
+        renderProductsCatalogTable(state.catalog);
+        viewVariantsModal(modelCode);
+      });
     });
   }
 
@@ -2165,11 +2379,102 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     });
   }
 
+  // -------------------------------------------------------------
+  // THÊM - SỬA - XÓA KHÁCH HÀNG (CUSTOMERS CRUD)
+  // -------------------------------------------------------------
+  function openAddCustomerModal() {
+    document.getElementById('editCustomerId').value = '';
+    document.getElementById('customerModalTitle').innerText = '👥 Thêm Khách Hàng Mới';
+    document.getElementById('custModalName').value = '';
+    document.getElementById('custModalPhone').value = '';
+    document.getElementById('custModalAddress').value = '';
+    document.getElementById('custModalProvince').value = '';
+    document.getElementById('custModalWard').value = '';
+    document.getElementById('custModalTag').value = 'Thường';
+    document.getElementById('custModalNotes').value = '';
+    openModal('customerModal');
+  }
+
+  function openEditCustomerModal(customerId) {
+    var c = (stateCustomers || []).find(function(x) { return x.id === customerId; });
+    if (!c) return;
+
+    document.getElementById('editCustomerId').value = c.id;
+    document.getElementById('customerModalTitle').innerText = '✏️ Sửa Thông Tin Khách Hàng: ' + (c.name || '');
+    document.getElementById('custModalName').value = c.name || '';
+    document.getElementById('custModalPhone').value = c.phone || '';
+    document.getElementById('custModalAddress').value = c.addressDetail || '';
+    document.getElementById('custModalProvince').value = c.province || '';
+    document.getElementById('custModalWard').value = c.ward || '';
+    document.getElementById('custModalTag').value = c.tag || 'Thường';
+    document.getElementById('custModalNotes').value = c.notes || '';
+    openModal('customerModal');
+  }
+
+  function saveCustomerForm() {
+    var id = document.getElementById('editCustomerId').value;
+    var name = (document.getElementById('custModalName').value || '').trim();
+    var phone = (document.getElementById('custModalPhone').value || '').trim();
+    var addr = (document.getElementById('custModalAddress').value || '').trim();
+    var prov = document.getElementById('custModalProvince').value;
+    var ward = (document.getElementById('custModalWard').value || '').trim();
+    var tag = document.getElementById('custModalTag').value;
+    var notes = (document.getElementById('custModalNotes').value || '').trim();
+
+    if (!name || !phone) {
+      showToast('Vui lòng nhập họ tên và số điện thoại khách hàng.', 'error');
+      return;
+    }
+
+    var payload = {
+      id: id,
+      name: name,
+      phone: phone,
+      addressDetail: addr,
+      province: prov,
+      ward: ward,
+      tag: tag,
+      notes: notes
+    };
+
+    callServer('apiSaveCustomer', [state.sessionToken, payload], function(res) {
+      showToast(res.message || 'Đã lưu khách hàng thành công!', 'success');
+      closeModal('customerModal');
+      loadCustomersList();
+    });
+  }
+
+  function deleteCustomerAction(customerId, custName) {
+    if (!confirm('Bạn có chắc chắn muốn xóa khách hàng "' + custName + '"?')) return;
+
+    callServer('apiDeleteCustomer', [state.sessionToken, customerId], function(res) {
+      showToast(res.message || 'Đã xóa khách hàng thành công!', 'success');
+      loadCustomersList();
+    });
+  }
+
+  // -------------------------------------------------------------
+  // THÊM - SỬA - XÓA NHÂN SỰ (STAFF CRUD)
+  // -------------------------------------------------------------
+  var stateStaffList = [];
   function openAddStaffModal() {
     document.getElementById('newStaffName').value = '';
     document.getElementById('newStaffEmail').value = '';
     document.getElementById('newStaffPhone').value = '';
     document.getElementById('newStaffPin').value = '123456';
+    document.getElementById('newStaffRole').value = 'SALE';
+    openModal('addStaffModal');
+  }
+
+  function editStaffUser(staffId) {
+    var u = (stateStaffList || []).find(function(x) { return x.id === staffId; });
+    if (!u) return;
+
+    document.getElementById('newStaffName').value = u.fullName || '';
+    document.getElementById('newStaffEmail').value = u.email || '';
+    document.getElementById('newStaffPhone').value = u.phone || '';
+    document.getElementById('newStaffPin').value = ''; // Để trống nếu không muốn đổi
+    document.getElementById('newStaffRole').value = u.role || 'SALE';
     openModal('addStaffModal');
   }
 
@@ -2180,8 +2485,8 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     var role = document.getElementById('newStaffRole').value;
     var pin = (document.getElementById('newStaffPin').value || '').trim();
 
-    if (!name || !email || !pin) {
-      showToast('Vui lòng điền họ tên, email và mã PIN.', 'error');
+    if (!name || !email) {
+      showToast('Vui lòng điền họ tên và email đăng nhập.', 'error');
       return;
     }
 
@@ -2190,13 +2495,22 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       email: email,
       phone: phone,
       role: role,
-      pin: pin,
       status: 'ACTIVE'
     };
+    if (pin) payload.pin = pin;
 
     callServer('apiSaveStaffUser', [state.sessionToken, payload], function() {
-      showToast('Đã tạo nhân sự mới thành công!', 'success');
+      showToast('Đã lưu thông tin nhân sự thành công!', 'success');
       closeModal('addStaffModal');
+      loadSettingsPage();
+    });
+  }
+
+  function deleteStaffAction(staffId, fullName) {
+    if (!confirm('Bạn có chắc chắn muốn xóa nhân sự "' + fullName + '"?')) return;
+
+    callServer('apiDeleteStaff', [state.sessionToken, staffId], function(res) {
+      showToast(res.message || 'Đã xóa nhân sự thành công!', 'success');
       loadSettingsPage();
     });
   }
@@ -2461,10 +2775,20 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     });
 
     callServer('apiGetStaffList', [state.sessionToken], function(staff) {
+      stateStaffList = staff || [];
       var tbody = document.getElementById('staffTableBody');
       var html = '';
-      staff.forEach(function(u) {
-        html += '<tr><td><strong>' + u.fullName + '</strong></td><td>' + u.email + '<br><small>' + (u.phone || '') + '</small></td><td><span class="user-role-badge">' + u.role + '</span></td><td>' + u.status + '</td></tr>';
+      (staff || []).forEach(function(u) {
+        html += '<tr>' +
+          '<td><strong>' + u.fullName + '</strong></td>' +
+          '<td>' + u.email + '<br><small>' + (u.phone || '') + '</small></td>' +
+          '<td><span class="user-role-badge">' + u.role + '</span></td>' +
+          '<td><span class="badge ' + (u.status === 'ACTIVE' ? 'badge-confirmed' : 'badge-cancelled') + '">' + u.status + '</span></td>' +
+          '<td style="text-align:center;white-space:nowrap;">' +
+            '<button class="btn btn-secondary btn-sm" style="margin-right:4px;" onclick="editStaffUser(\'' + u.id + '\')" title="Chỉnh sửa nhân sự">✏️ Sửa</button>' +
+            '<button class="btn btn-secondary btn-sm" style="color:var(--spx-danger);border-color:#ffcdd2;" onclick="deleteStaffAction(\'' + u.id + '\', \'' + u.fullName + '\')" title="Xóa nhân sự">🗑️ Xóa</button>' +
+          '</td>' +
+        '</tr>';
       });
       tbody.innerHTML = html;
     });

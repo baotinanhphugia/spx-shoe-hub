@@ -67,7 +67,7 @@ function loginWithCredentials(identifier, pin) {
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var uEmail = (u.email || '').trim().toLowerCase();
-    var uPhone = String(u.phone || \"\").trim();
+    var uPhone = String(u.phone || '').trim();
     if ((uEmail === inputId || uPhone === inputId) && u.status === 'ACTIVE') {
       if (u.pinHash === inputHash) {
         targetUser = u;
@@ -269,4 +269,20 @@ function saveStaffUser(token, staffData) {
   }
   
   return { success: true };
+}
+
+/**
+ * Xóa một nhân sự (Chỉ Admin)
+ */
+function deleteStaffUser(token, staffId) {
+  var currentUser = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  if (currentUser.id === staffId) {
+    throw new Error('Không thể tự xóa tài khoản của chính mình.');
+  }
+  var success = deleteRowByKey(CONFIG.SHEETS.USERS, 'id', staffId);
+  if (!success) {
+    throw new Error('Không tìm thấy nhân viên có ID: ' + staffId);
+  }
+  logAuditAction('DELETE_STAFF', 'Users', staffId, 'Xóa nhân sự ID: ' + staffId, currentUser.fullName);
+  return { success: true, message: 'Đã xóa nhân sự thành công.' };
 }

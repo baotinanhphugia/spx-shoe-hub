@@ -149,6 +149,16 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiProcessJobQueueNow(sessionToken);
     case 'RUN_TESTS':
       return apiRunSystemTests(sessionToken);
+        case 'DELETE_PRODUCT':
+      return apiCall(function() { return deleteProduct(sessionToken, payload.productId); });
+    case 'DELETE_VARIANT':
+      return apiCall(function() { return deleteVariant(sessionToken, payload.sku); });
+    case 'SAVE_CUSTOMER':
+      return apiCall(function() { return saveCustomer(sessionToken, payload.customer || payload); });
+    case 'DELETE_CUSTOMER':
+      return apiCall(function() { return deleteCustomer(sessionToken, payload.customerId); });
+    case 'DELETE_STAFF':
+      return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
     default:
       return { success: false, error: 'Hành động không hợp lệ: ' + action };
   }

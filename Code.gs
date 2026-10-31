@@ -2,11 +2,7 @@
  * CODE.GS - TỔNG HỢP TOÀN BỘ BACKEND VÀ REST API CHO DỰ ÁN VẬN ĐƠN SPX & QUẢN LÝ KHO GIÀY
  * Bao gồm đầy đủ 14 Modules backend chuẩn Google Apps Script runtime V8.
  * Tích hợp sẵn RESTful API phục vụ Frontend chạy trên GitHub Pages và CSDL Google Sheets.
- *
- * Thông tin tài khoản SPX Live của shop:
- * - Mã người dùng (App ID): 102384205900430
- * - Secret Key: 8d1aefec-ba63-4a34-984b-26fc1d5054ea
- * - ID tài khoản (Merchant ID): 15093594984
+ * Hỗ trợ toàn diện Thêm - Sửa - Xóa cho Sản phẩm, Biến thể SKU, Khách hàng và Nhân sự.
  */
 
 
@@ -444,6 +440,60 @@ function updateRowByKey(sheetName, keyField, keyValue, updateObj) {
     }
   }
   return false;
+}
+
+
+/**
+ * Xóa một hàng theo trường khóa chính
+ */
+function deleteRowByKey(sheetName, keyField, keyValue) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
+  
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return false;
+  
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var keyColIndex = headers.indexOf(keyField);
+  if (keyColIndex === -1) throw new Error('Không tìm thấy cột khóa ' + keyField + ' trong ' + sheetName);
+  
+  var colData = sheet.getRange(2, keyColIndex + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < colData.length; i++) {
+    if (String(colData[i][0]) === String(keyValue)) {
+      sheet.deleteRow(i + 2);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Xóa nhiều dòng khớp giá trị khóa
+ */
+function deleteRowsByKey(sheetName, keyField, keyValue) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
+  
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return 0;
+  
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var keyColIndex = headers.indexOf(keyField);
+  if (keyColIndex === -1) throw new Error('Không tìm thấy cột khóa ' + keyField + ' trong ' + sheetName);
+  
+  var colData = sheet.getRange(2, keyColIndex + 1, lastRow - 1, 1).getValues();
+  var deletedCount = 0;
+  for (var i = colData.length - 1; i >= 0; i--) {
+    if (String(colData[i][0]) === String(keyValue)) {
+      sheet.deleteRow(i + 2);
+      deletedCount++;
+    }
+  }
+  return deletedCount;
 }
 
 /**
@@ -901,7 +951,7 @@ function loginWithCredentials(identifier, pin) {
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var uEmail = (u.email || '').trim().toLowerCase();
-    var uPhone = String(u.phone || \"\").trim();
+    var uPhone = String(u.phone || '').trim();
     if ((uEmail === inputId || uPhone === inputId) && u.status === 'ACTIVE') {
       if (u.pinHash === inputHash) {
         targetUser = u;
@@ -1103,6 +1153,22 @@ function saveStaffUser(token, staffData) {
   }
   
   return { success: true };
+}
+
+/**
+ * Xóa một nhân sự (Chỉ Admin)
+ */
+function deleteStaffUser(token, staffId) {
+  var currentUser = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  if (currentUser.id === staffId) {
+    throw new Error('Không thể tự xóa tài khoản của chính mình.');
+  }
+  var success = deleteRowByKey(CONFIG.SHEETS.USERS, 'id', staffId);
+  if (!success) {
+    throw new Error('Không tìm thấy nhân viên có ID: ' + staffId);
+  }
+  logAuditAction('DELETE_STAFF', 'Users', staffId, 'Xóa nhân sự ID: ' + staffId, currentUser.fullName);
+  return { success: true, message: 'Đã xóa nhân sự thành công.' };
 }
 
 
@@ -1322,6 +1388,63 @@ function batchCreateVariants(token, modelCode, colors, sizes, defaultPrice, refW
   
   logAuditAction('BATCH_CREATE_VARIANTS', 'Variants', cleanModel, 'Tạo ' + newVariants.length + ' biến thể SKU cho mẫu ' + cleanModel, user.fullName);
   return { success: true, count: newVariants.length };
+}
+
+/**
+ * Xóa một Mẫu sản phẩm và tất cả các Biến thể SKU liên quan (Chỉ Admin)
+ */
+function deleteProduct(token, productId) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var products = readTableData(CONFIG.SHEETS.PRODUCTS);
+  var target = null;
+  
+  for (var i = 0; i < products.length; i++) {
+    if (products[i].id === productId || products[i].modelCode === productId) {
+      target = products[i];
+      break;
+    }
+  }
+  
+  if (!target) {
+    throw new Error('Không tìm thấy sản phẩm có ID: ' + productId);
+  }
+  
+  var modelCode = target.modelCode;
+  deleteRowByKey(CONFIG.SHEETS.PRODUCTS, 'id', target.id);
+  
+  var variants = readTableData(CONFIG.SHEETS.VARIANTS);
+  var skusToDelete = [];
+  for (var j = 0; j < variants.length; j++) {
+    if (variants[j].modelCode === modelCode) {
+      skusToDelete.push(variants[j].sku);
+    }
+  }
+  
+  deleteRowsByKey(CONFIG.SHEETS.VARIANTS, 'modelCode', modelCode);
+  for (var k = 0; k < skusToDelete.length; k++) {
+    deleteRowByKey(CONFIG.SHEETS.STOCK, 'sku', skusToDelete[k]);
+  }
+  
+  logAuditAction('DELETE_PRODUCT', 'Products', target.id, 'Xóa mẫu: ' + modelCode + ' cùng ' + skusToDelete.length + ' biến thể SKU', user.fullName);
+  return { success: true, message: 'Đã xóa mẫu sản phẩm ' + modelCode + ' và toàn bộ biến thể thành công.' };
+}
+
+/**
+ * Xóa một Biến thể SKU riêng lẻ (Chỉ Admin)
+ */
+function deleteVariant(token, sku) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var cleanSku = String(sku || '').trim().toUpperCase();
+  
+  var successVar = deleteRowByKey(CONFIG.SHEETS.VARIANTS, 'sku', cleanSku);
+  deleteRowByKey(CONFIG.SHEETS.STOCK, 'sku', cleanSku);
+  
+  if (!successVar) {
+    throw new Error('Không tìm thấy biến thể SKU: ' + cleanSku);
+  }
+  
+  logAuditAction('DELETE_VARIANT', 'Variants', cleanSku, 'Xóa biến thể SKU: ' + cleanSku, user.fullName);
+  return { success: true, message: 'Đã xóa biến thể SKU ' + cleanSku + ' thành công.' };
 }
 
 
@@ -3255,6 +3378,79 @@ function getOrderDetail(token, orderId) {
   };
 }
 
+/**
+ * Thêm mới hoặc chỉnh sửa Khách hàng thủ công
+ */
+function saveCustomer(token, customerData) {
+  requireRole(token, [CONFIG.ROLES.SALE, CONFIG.ROLES.ADMIN]);
+  var now = getNowIsoString();
+  
+  if (!customerData.name || !customerData.phone) {
+    throw new Error('Vui lòng nhập tên và số điện thoại khách hàng.');
+  }
+  
+  var cleanPhone = String(customerData.phone).replace(/\D/g, '');
+  var customers = readTableData(CONFIG.SHEETS.CUSTOMERS);
+  var existing = null;
+  
+  for (var i = 0; i < customers.length; i++) {
+    if ((customerData.id && customers[i].id === customerData.id) || 
+        String(customers[i].phone || '').replace(/\D/g, '') === cleanPhone) {
+      existing = customers[i];
+      break;
+    }
+  }
+  
+  if (existing) {
+    var updatePayload = {
+      name: customerData.name,
+      phone: cleanPhone,
+      addressDetail: customerData.addressDetail || '',
+      province: customerData.province || '',
+      district: customerData.district || '',
+      ward: customerData.ward || '',
+      tag: customerData.tag || existing.tag || 'Thường',
+      notes: customerData.notes || '',
+      updatedAt: now
+    };
+    updateRowByKey(CONFIG.SHEETS.CUSTOMERS, 'id', existing.id, updatePayload);
+    return { success: true, id: existing.id, message: 'Đã cập nhật thông tin khách hàng.' };
+  } else {
+    var newId = generateId('CUST');
+    var newRow = {
+      id: newId,
+      name: customerData.name,
+      phone: cleanPhone,
+      totalOrders: 0,
+      totalSpent: 0,
+      lastOrderDate: '',
+      province: customerData.province || '',
+      district: customerData.district || '',
+      ward: customerData.ward || '',
+      addressDetail: customerData.addressDetail || '',
+      tag: customerData.tag || 'Thường',
+      notes: customerData.notes || '',
+      createdAt: now,
+      updatedAt: now
+    };
+    insertRow(CONFIG.SHEETS.CUSTOMERS, newRow);
+    return { success: true, id: newId, message: 'Đã tạo khách hàng mới thành công.' };
+  }
+}
+
+/**
+ * Xóa một khách hàng (Chỉ Admin)
+ */
+function deleteCustomer(token, customerId) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var success = deleteRowByKey(CONFIG.SHEETS.CUSTOMERS, 'id', customerId);
+  if (!success) {
+    throw new Error('Không tìm thấy khách hàng có ID: ' + customerId);
+  }
+  logAuditAction('DELETE_CUSTOMER', 'Customers', customerId, 'Xóa khách hàng ID: ' + customerId, user.fullName);
+  return { success: true, message: 'Đã xóa khách hàng thành công.' };
+}
+
 
 // =============================================================
 // MODULE: Returns.gs
@@ -4152,6 +4348,16 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiProcessJobQueueNow(sessionToken);
     case 'RUN_TESTS':
       return apiRunSystemTests(sessionToken);
+        case 'DELETE_PRODUCT':
+      return apiCall(function() { return deleteProduct(sessionToken, payload.productId); });
+    case 'DELETE_VARIANT':
+      return apiCall(function() { return deleteVariant(sessionToken, payload.sku); });
+    case 'SAVE_CUSTOMER':
+      return apiCall(function() { return saveCustomer(sessionToken, payload.customer || payload); });
+    case 'DELETE_CUSTOMER':
+      return apiCall(function() { return deleteCustomer(sessionToken, payload.customerId); });
+    case 'DELETE_STAFF':
+      return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
     default:
       return { success: false, error: 'Hành động không hợp lệ: ' + action };
   }

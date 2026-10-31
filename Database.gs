@@ -235,6 +235,60 @@ function updateRowByKey(sheetName, keyField, keyValue, updateObj) {
   return false;
 }
 
+
+/**
+ * Xóa một hàng theo trường khóa chính
+ */
+function deleteRowByKey(sheetName, keyField, keyValue) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
+  
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return false;
+  
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var keyColIndex = headers.indexOf(keyField);
+  if (keyColIndex === -1) throw new Error('Không tìm thấy cột khóa ' + keyField + ' trong ' + sheetName);
+  
+  var colData = sheet.getRange(2, keyColIndex + 1, lastRow - 1, 1).getValues();
+  for (var i = 0; i < colData.length; i++) {
+    if (String(colData[i][0]) === String(keyValue)) {
+      sheet.deleteRow(i + 2);
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Xóa nhiều dòng khớp giá trị khóa
+ */
+function deleteRowsByKey(sheetName, keyField, keyValue) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) throw new Error('Sheet không tồn tại: ' + sheetName);
+  
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow < 2) return 0;
+  
+  var headers = sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  var keyColIndex = headers.indexOf(keyField);
+  if (keyColIndex === -1) throw new Error('Không tìm thấy cột khóa ' + keyField + ' trong ' + sheetName);
+  
+  var colData = sheet.getRange(2, keyColIndex + 1, lastRow - 1, 1).getValues();
+  var deletedCount = 0;
+  for (var i = colData.length - 1; i >= 0; i--) {
+    if (String(colData[i][0]) === String(keyValue)) {
+      sheet.deleteRow(i + 2);
+      deletedCount++;
+    }
+  }
+  return deletedCount;
+}
+
 /**
  * Khởi tạo cấu trúc các Sheet, định dạng tiêu đề và dữ liệu mẫu nếu chưa có
  * Hoạt động IDEMPOTENT - Không xóa dữ liệu nếu đã có sẵn.

@@ -212,3 +212,60 @@ function batchCreateVariants(token, modelCode, colors, sizes, defaultPrice, refW
   logAuditAction('BATCH_CREATE_VARIANTS', 'Variants', cleanModel, 'Tạo ' + newVariants.length + ' biến thể SKU cho mẫu ' + cleanModel, user.fullName);
   return { success: true, count: newVariants.length };
 }
+
+/**
+ * Xóa một Mẫu sản phẩm và tất cả các Biến thể SKU liên quan (Chỉ Admin)
+ */
+function deleteProduct(token, productId) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var products = readTableData(CONFIG.SHEETS.PRODUCTS);
+  var target = null;
+  
+  for (var i = 0; i < products.length; i++) {
+    if (products[i].id === productId || products[i].modelCode === productId) {
+      target = products[i];
+      break;
+    }
+  }
+  
+  if (!target) {
+    throw new Error('Không tìm thấy sản phẩm có ID: ' + productId);
+  }
+  
+  var modelCode = target.modelCode;
+  deleteRowByKey(CONFIG.SHEETS.PRODUCTS, 'id', target.id);
+  
+  var variants = readTableData(CONFIG.SHEETS.VARIANTS);
+  var skusToDelete = [];
+  for (var j = 0; j < variants.length; j++) {
+    if (variants[j].modelCode === modelCode) {
+      skusToDelete.push(variants[j].sku);
+    }
+  }
+  
+  deleteRowsByKey(CONFIG.SHEETS.VARIANTS, 'modelCode', modelCode);
+  for (var k = 0; k < skusToDelete.length; k++) {
+    deleteRowByKey(CONFIG.SHEETS.STOCK, 'sku', skusToDelete[k]);
+  }
+  
+  logAuditAction('DELETE_PRODUCT', 'Products', target.id, 'Xóa mẫu: ' + modelCode + ' cùng ' + skusToDelete.length + ' biến thể SKU', user.fullName);
+  return { success: true, message: 'Đã xóa mẫu sản phẩm ' + modelCode + ' và toàn bộ biến thể thành công.' };
+}
+
+/**
+ * Xóa một Biến thể SKU riêng lẻ (Chỉ Admin)
+ */
+function deleteVariant(token, sku) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var cleanSku = String(sku || '').trim().toUpperCase();
+  
+  var successVar = deleteRowByKey(CONFIG.SHEETS.VARIANTS, 'sku', cleanSku);
+  deleteRowByKey(CONFIG.SHEETS.STOCK, 'sku', cleanSku);
+  
+  if (!successVar) {
+    throw new Error('Không tìm thấy biến thể SKU: ' + cleanSku);
+  }
+  
+  logAuditAction('DELETE_VARIANT', 'Variants', cleanSku, 'Xóa biến thể SKU: ' + cleanSku, user.fullName);
+  return { success: true, message: 'Đã xóa biến thể SKU ' + cleanSku + ' thành công.' };
+}

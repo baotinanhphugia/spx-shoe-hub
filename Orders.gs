@@ -593,3 +593,76 @@ function getOrderDetail(token, orderId) {
     returns: returns
   };
 }
+
+/**
+ * Thêm mới hoặc chỉnh sửa Khách hàng thủ công
+ */
+function saveCustomer(token, customerData) {
+  requireRole(token, [CONFIG.ROLES.SALE, CONFIG.ROLES.ADMIN]);
+  var now = getNowIsoString();
+  
+  if (!customerData.name || !customerData.phone) {
+    throw new Error('Vui lòng nhập tên và số điện thoại khách hàng.');
+  }
+  
+  var cleanPhone = String(customerData.phone).replace(/\D/g, '');
+  var customers = readTableData(CONFIG.SHEETS.CUSTOMERS);
+  var existing = null;
+  
+  for (var i = 0; i < customers.length; i++) {
+    if ((customerData.id && customers[i].id === customerData.id) || 
+        String(customers[i].phone || '').replace(/\D/g, '') === cleanPhone) {
+      existing = customers[i];
+      break;
+    }
+  }
+  
+  if (existing) {
+    var updatePayload = {
+      name: customerData.name,
+      phone: cleanPhone,
+      addressDetail: customerData.addressDetail || '',
+      province: customerData.province || '',
+      district: customerData.district || '',
+      ward: customerData.ward || '',
+      tag: customerData.tag || existing.tag || 'Thường',
+      notes: customerData.notes || '',
+      updatedAt: now
+    };
+    updateRowByKey(CONFIG.SHEETS.CUSTOMERS, 'id', existing.id, updatePayload);
+    return { success: true, id: existing.id, message: 'Đã cập nhật thông tin khách hàng.' };
+  } else {
+    var newId = generateId('CUST');
+    var newRow = {
+      id: newId,
+      name: customerData.name,
+      phone: cleanPhone,
+      totalOrders: 0,
+      totalSpent: 0,
+      lastOrderDate: '',
+      province: customerData.province || '',
+      district: customerData.district || '',
+      ward: customerData.ward || '',
+      addressDetail: customerData.addressDetail || '',
+      tag: customerData.tag || 'Thường',
+      notes: customerData.notes || '',
+      createdAt: now,
+      updatedAt: now
+    };
+    insertRow(CONFIG.SHEETS.CUSTOMERS, newRow);
+    return { success: true, id: newId, message: 'Đã tạo khách hàng mới thành công.' };
+  }
+}
+
+/**
+ * Xóa một khách hàng (Chỉ Admin)
+ */
+function deleteCustomer(token, customerId) {
+  var user = requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var success = deleteRowByKey(CONFIG.SHEETS.CUSTOMERS, 'id', customerId);
+  if (!success) {
+    throw new Error('Không tìm thấy khách hàng có ID: ' + customerId);
+  }
+  logAuditAction('DELETE_CUSTOMER', 'Customers', customerId, 'Xóa khách hàng ID: ' + customerId, user.fullName);
+  return { success: true, message: 'Đã xóa khách hàng thành công.' };
+}
