@@ -260,11 +260,15 @@ function executeCreateShipmentJob(payload) {
     ward: order.ward
   };
   
+  var allItems = readTableData(CONFIG.SHEETS.ORDER_ITEMS);
+  var orderItems = allItems.filter(function(it) { return it.orderId === orderId; });
+
   var spxResult = provider.createShipment({
     referenceCode: referenceCode,
     orderId: order.id,
     sender: sender,
     receiver: receiver,
+    items: orderItems,
     codAmount: Number(order.codAmount) || 0,
     weightG: Number(payload.weightG) || 800,
     itemInspection: getSystemSetting('ITEM_INSPECTION', 'VIEW_NO_TRY'),
@@ -289,6 +293,7 @@ function executeCreateShipmentJob(payload) {
     shipmentCode: 'SHP-' + order.orderCode,
     orderId: order.id,
     trackingNumber: spxResult.trackingNumber,
+    orderSn: spxResult.orderSn || '',
     provider: provider.name,
     status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
     weightG: payload.weightG,
@@ -305,6 +310,8 @@ function executeCreateShipmentJob(payload) {
   // Cập nhật Orders sang LABEL_PRINTED
   updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', order.id, {
     shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+    trackingNumber: spxResult.trackingNumber,
+    orderSn: spxResult.orderSn || '',
     spxFee: spxResult.shippingFee || 0,
     updatedAt: now
   });

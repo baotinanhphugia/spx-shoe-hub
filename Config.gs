@@ -110,16 +110,22 @@ const CONFIG = {
     RECONCILE_BATCH: 'RECONCILE_BATCH'
   },
 
-  // Cấu hình kho gửi hàng & vận chuyển mặc định
+  // Cấu hình kho gửi hàng & vận chuyển mặc định (Đã đồng bộ chính xác với tài khoản SPX của Shop)
   DEFAULT_SHIPPING: {
-    SENDER_NAME: 'Kho Giày Phú Gia',
-    SENDER_PHONE: '0988123456',
-    SENDER_ADDRESS: '123 Cầu Giấy, Quan Hoa, Cầu Giấy',
-    SENDER_PROVINCE: 'Hà Nội',
-    SENDER_DISTRICT: 'Quận Cầu Giấy',
-    SENDER_WARD: 'Phường Quan Hoa',
-    SENDER_POSTCODE: '100000',
-    SERVICE_ID: 'SPX_STANDARD',
+    SENDER_NAME: 'Lê Thị Thu Hằng',
+    SENDER_PHONE: '03981138678',
+    SENDER_PHONE_INTL: '843981138678',
+    SENDER_ADDRESS: 'Cửa Hàng Phú Gia, Phố Trương Xá',
+    SENDER_PROVINCE: 'Tỉnh Hưng Yên',
+    SENDER_PROVINCE_ID: 6100016,
+    SENDER_DISTRICT: 'Xã Nghĩa Dân',
+    SENDER_DISTRICT_ID: 6102399,
+    SENDER_WARD: 'Xã Nghĩa Dân',
+    SENDER_POSTCODE: '',
+    SENDER_ADDRESS_ID: '2072983108141670400',
+    SENDER_ADDRESS_PK_ID: 42528070,
+    ADDRESS_VERSION: 2,
+    SERVICE_ID: 53001,              // SPX Standard Service (Giao hàng Tiêu Chuẩn)
     BOX_WEIGHT_G: 150,              // Khối lượng vỏ hộp đóng gói
     PAIR_WEIGHT_G: 650,             // Khối lượng tham khảo 1 đôi giày
     ITEM_INSPECTION: 'VIEW_NO_TRY', // 'VIEW_NO_TRY' (Xem không thử), 'VIEW_TRY' (Cho thử), 'NO_VIEW' (Không xem)
@@ -136,7 +142,8 @@ const CONFIG = {
     APP_ID: '102384205900430',       // Mã người dùng (User ID)
     APP_SECRET: '8d1aefec-ba63-4a34-984b-26fc1d5054ea', // Secret Key
     MERCHANT_ID: '15093594984',      // ID tài khoản (Account ID)
-    TIMEOUT_MS: 15000
+    COOKIE: 'spx_token=ffY01SJcbz7YbaqH3FTB0JMQIZHgDwDQWiP6tDvCzDQugXaIQDWRlIf1TW5qtmXr; spx_sid=3bc86c05279940a853cb2b5d4a6748dabfcbfe908562e6789136674ae48c96bd; login_type=1; login_status=true; nss_cid=VN;',
+    TIMEOUT_MS: 20000
   },
 
   // Khóa Script Properties
@@ -147,6 +154,7 @@ const CONFIG = {
     SPX_APP_SECRET: 'SPX_APP_SECRET',
     SPX_MERCHANT_ID: 'SPX_MERCHANT_ID',
     SPX_BASE_URL: 'SPX_BASE_URL',
+    SPX_COOKIE: 'SPX_COOKIE',
     SYSTEM_INIT: 'SYSTEM_INIT'
   }
 };

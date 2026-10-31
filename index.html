@@ -2575,11 +2575,12 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       var html = '';
       items.forEach(function(o) {
         var isPackable = (o.status === 'CONFIRMED' && (o.shippingStatus === 'UNSHIPPED' || o.shippingStatus === 'QUEUED' || o.shippingStatus === 'LABEL_PRINTED'));
-        var hasRealSpx = o.trackingNumber && o.trackingNumber.indexOf('SPXVN') === 0;
+        var hasRealSpx = o.trackingNumber && (o.trackingNumber.indexOf('SPXVN') === 0 || o.trackingNumber.indexOf('VN') === 0);
+        var targetSn = o.orderSn || o.trackingNumber;
 
         var spxColumn = '';
         if (hasRealSpx) {
-          spxColumn = '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(o.trackingNumber) + '" target="_blank" style="color:var(--spx-orange);font-weight:800;text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' + o.trackingNumber + ' 📄</a>';
+          spxColumn = '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn) + '" target="_blank" style="color:var(--spx-orange);font-weight:800;text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' + o.trackingNumber + ' 📄</a>';
         } else if (o.trackingNumber) {
           spxColumn = '<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>';
         } else {
@@ -2588,7 +2589,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
 
         var actionBtns = '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ';
         if (hasRealSpx) {
-          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + o.trackingNumber + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 File SPX</button> ';
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + targetSn + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 File SPX</button> ';
         } else if (isPackable) {
           actionBtns += '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')" title="In tem dán thùng A6">🖨️ In A6</button> ';
         }
@@ -2600,7 +2601,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         }
 
         html += '<tr>' +
-          '<td style="text-align:center;"><input type="checkbox" class="order-select-cb" value="' + o.id + '" data-code="' + o.orderCode + '" data-tracking="' + (o.trackingNumber || '') + '" onchange="updateSelectedOrdersState()"></td>' +
+          '<td style="text-align:center;"><input type="checkbox" class="order-select-cb" value="' + o.id + '" data-code="' + o.orderCode + '" data-tracking="' + (o.trackingNumber || '') + '" data-ordersn="' + (targetSn || '') + '" onchange="updateSelectedOrdersState()"></td>' +
           '<td><strong>' + o.orderCode + '</strong></td>' +
           '<td>' + o.customerName + '</td>' +
           '<td>' + o.customerPhone + '</td>' +
@@ -2728,14 +2729,14 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     
     var spxList = [];
     selectedCbs.forEach(function(cb) {
-      var tr = cb.getAttribute('data-tracking') || '';
-      if (tr && tr.indexOf('SPXVN') === 0) {
-        spxList.push(tr);
+      var sn = cb.getAttribute('data-ordersn') || cb.getAttribute('data-tracking') || '';
+      if (sn && (sn.indexOf('VN') === 0 || sn.indexOf('SPXVN') === 0)) {
+        spxList.push(sn);
       }
     });
     
     if (spxList.length === 0) {
-      alert('Các đơn hàng đã chọn chưa có Mã vận đơn thật từ SPX (SPXVN...).\n\nVui lòng bấm nút "🔗 Gán SPX" trên từng đơn để liên kết mã vận đơn do bưu cục SPX cấp trước!');
+      alert('Các đơn hàng đã chọn chưa có Mã vận đơn thật từ SPX (SPXVN...).\n\nVui lòng bấm nút "📦 Tạo vận đơn SPX" hoặc "🔗 Gán SPX" trên từng đơn trước!');
       return;
     }
     
