@@ -777,28 +777,70 @@
         <div class="card">
           <div class="card-title">
             <span>Quản lý Hàng hoàn & Đổi Size (QC Kiểm định)</span>
-            <button class="btn btn-primary btn-sm" onclick="openExchangeModal()">+ Tạo yêu cầu Đổi size</button>
+            <div style="display:flex;gap:8px;">
+              <button class="btn btn-secondary btn-sm" onclick="loadReturnsList()">🔄 Làm mới</button>
+              <button class="btn btn-primary btn-sm" onclick="openExchangeModal()">+ Tạo yêu cầu Đổi size</button>
+            </div>
           </div>
           <div style="font-size:12px;color:var(--spx-text-muted);margin-bottom:12px;">
-            Quy trình QC: Khi hàng thực tế về kho, Thủ kho kiểm tra: Đạt chuẩn -> Bán lại; Lỗi hỏng -> Kho lỗi riêng biệt.
+            Quy trình QC: Khi hàng thực tế về kho, quét tem vận đơn SPX để kiểm định: <strong>Đạt chuẩn</strong> ➔ Tự động nhập lại kho bán; <strong>Lỗi hỏng</strong> ➔ Kho lỗi riêng biệt.
           </div>
+
+          <!-- KHUNG TÌM KIẾM & QUÉT MÃ VẬN ĐƠN SPX -->
+          <div style="background:#FFF8F6;border:1.5px solid var(--spx-orange);border-radius:8px;padding:12px 16px;margin-bottom:14px;box-shadow:0 2px 8px rgba(238,77,45,0.08);">
+            <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;">
+              <div style="flex:1;min-width:300px;position:relative;">
+                <span style="position:absolute;left:12px;top:50%;transform:translateY(-50%);font-size:16px;">🔍</span>
+                <input type="text" class="form-control" id="returnSearchInput" 
+                  placeholder="Quét mã vạch SPX hoặc nhập Mã vận đơn (SPXVN...), SĐT, Tên khách, Mã đơn..." 
+                  style="padding-left:38px;font-size:15px;font-weight:700;border:1.5px solid #CBD5E1;border-radius:6px;width:100%;letter-spacing:0.5px;" 
+                  onkeyup="handleReturnSearchKey(event)">
+              </div>
+              <button class="btn btn-primary" onclick="executeReturnSearch()" style="background:var(--spx-orange);font-weight:700;">
+                🔍 Tìm kiếm
+              </button>
+              <button class="btn btn-secondary" onclick="resetReturnSearch()">
+                ✖️ Xóa lọc
+              </button>
+            </div>
+            <div style="font-size:12px;color:#64748B;margin-top:8px;display:flex;align-items:center;gap:6px;">
+              <span>⚡ <strong>Thủ kho quét mã:</strong> Cắm súng quét mã vạch và bắn vào tem SPX trên gói hàng ➔ Hệ thống tự động tìm đúng đơn và bật bảng kiểm định QC ngay lập tức!</span>
+            </div>
+          </div>
+
+          <!-- THANH TAB LỌC NHANH TRẠNG THÁI HÀNG HOÀN -->
+          <div class="quick-filter-tabs" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+            <button type="button" class="btn btn-sm btn-outline active" id="tabReturnAll" onclick="setReturnFilter('ALL')" style="font-weight:700;">
+              Tất cả (<span id="countReturnAll">0</span>)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabReturnWaiting" onclick="setReturnFilter('WAITING')" style="font-weight:700;color:var(--spx-orange);">
+              ⏳ Chờ kiểm định QC (<span id="countReturnWaiting">0</span>)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabReturnPassed" onclick="setReturnFilter('PASS')" style="font-weight:700;color:var(--spx-success);">
+              ✅ QC Đạt - Nhập kho bán (<span id="countReturnPassed">0</span>)
+            </button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabReturnFailed" onclick="setReturnFilter('FAIL')" style="font-weight:700;color:var(--spx-danger);">
+              ❌ QC Lỗi - Kho hàng lỗi (<span id="countReturnFailed">0</span>)
+            </button>
+          </div>
+
           <div class="table-responsive">
             <table class="table">
               <thead>
                 <tr>
-                  <th>Mã hoàn/đổi</th>
-                  <th>Đơn gốc</th>
-                  <th>Khách hàng</th>
-                  <th>SKU Hoàn cũ</th>
-                  <th>SKU Mới (nếu đổi)</th>
+                  <th style="min-width:170px;">Mã Vận Đơn SPX</th>
+                  <th>Mã Hoàn/Đổi</th>
+                  <th>Khách hàng & SĐT</th>
+                  <th>SKU Giày Hoàn</th>
+                  <th>SKU Mới (Nếu đổi)</th>
                   <th>Loại</th>
                   <th>Trạng thái</th>
                   <th>Người QC</th>
-                  <th>Thao tác QC</th>
+                  <th style="min-width:150px;text-align:center;">Thao tác QC</th>
                 </tr>
               </thead>
               <tbody id="returnsTableBody">
-                <tr><td colspan="9" style="text-align:center;padding:20px;">Đang tải danh sách hoàn/đổi...</td></tr>
+                <tr><td colspan="9" style="text-align:center;padding:24px;">Đang tải danh sách hoàn/đổi...</td></tr>
               </tbody>
             </table>
           </div>
@@ -3308,43 +3350,230 @@ SPXVN9876543210,650000,28000,622000"></textarea>
   }
 
   // -------------------------------------------------------------
-  // VIEW: HÀNG HOÀN & ĐỔI SIZE
+  // VIEW: HÀNG HOÀN & ĐỔI SIZE (QC KIỂM ĐỊNH TẬP TRUNG MÃ SPX)
   // -------------------------------------------------------------
+  state.rawReturnsList = [];
+  state.returnFilter = 'ALL';
+  state.returnSearchQuery = '';
+
   function loadReturnsList() {
     callServer('apiGetReturnsList', [state.sessionToken], function(list) {
-      var tbody = document.getElementById('returnsTableBody');
-      if (list.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:20px;">Chưa có yêu cầu hoàn hoặc đổi hàng.</td></tr>';
-        return;
-      }
-      var html = '';
-      list.forEach(function(r) {
-        var actions = '';
-        if (r.status === 'RETURNING' || r.status === 'REQUESTED') {
-          actions = '<button class="btn btn-success btn-sm" onclick="processReturnQcAction(\'' + r.id + '\', true)">QC Đạt</button> ' +
-                    '<button class="btn btn-danger btn-sm" onclick="processReturnQcAction(\'' + r.id + '\', false)">QC Lỗi</button>';
-        }
-        html += '<tr>' +
-          '<td><strong>' + r.returnCode + '</strong></td>' +
-          '<td>' + r.originalOrderCode + '</td>' +
-          '<td>' + r.customerName + ' (' + r.customerPhone + ')</td>' +
-          '<td><strong>' + r.skuOld + '</strong></td>' +
-          '<td>' + (r.skuNew || '-') + '</td>' +
-          '<td>' + (r.returnType === 'EXCHANGE' ? 'Đổi size' : 'Hoàn hàng') + '</td>' +
-          '<td><span class="badge badge-' + r.status.toLowerCase() + '">' + r.status + '</span></td>' +
-          '<td>' + (r.inspectedBy || '-') + '</td>' +
-          '<td>' + (actions || '<span style="color:#999;">Đã hoàn tất</span>') + '</td>' +
-        '</tr>';
-      });
-      tbody.innerHTML = html;
+      state.rawReturnsList = list || [];
+      renderReturnsTable();
     });
   }
 
-  function processReturnQcAction(returnId, isPassed) {
-    var note = prompt('Nhập ghi chú kiểm định QC (' + (isPassed ? 'Hàng đạt chuẩn vào kho bán' : 'Hàng lỗi hư hại vào kho lỗi') + '):');
+  function renderReturnsTable() {
+    var tbody = document.getElementById('returnsTableBody');
+    if (!tbody) return;
+
+    var list = state.rawReturnsList || [];
+
+    // Tính toán số lượng cho các tab
+    var countAll = list.length;
+    var countWaiting = 0;
+    var countPassed = 0;
+    var countFailed = 0;
+
+    list.forEach(function(r) {
+      if (r.status === 'RETURNING' || r.status === 'REQUESTED') countWaiting++;
+      else if (r.status === 'RECEIVED_PASS') countPassed++;
+      else if (r.status === 'RECEIVED_FAIL') countFailed++;
+    });
+
+    if (document.getElementById('countReturnAll')) document.getElementById('countReturnAll').innerText = countAll;
+    if (document.getElementById('countReturnWaiting')) document.getElementById('countReturnWaiting').innerText = countWaiting;
+    if (document.getElementById('countReturnPassed')) document.getElementById('countReturnPassed').innerText = countPassed;
+    if (document.getElementById('countReturnFailed')) document.getElementById('countReturnFailed').innerText = countFailed;
+
+    // Lọc theo Tab trạng thái
+    var filtered = list.filter(function(r) {
+      if (state.returnFilter === 'WAITING') return r.status === 'RETURNING' || r.status === 'REQUESTED';
+      if (state.returnFilter === 'PASS') return r.status === 'RECEIVED_PASS';
+      if (state.returnFilter === 'FAIL') return r.status === 'RECEIVED_FAIL';
+      return true;
+    });
+
+    // Lọc theo Ô Tìm kiếm / Quét mã vạch SPX
+    var q = (state.returnSearchQuery || '').trim().toLowerCase();
+    if (q) {
+      filtered = filtered.filter(function(r) {
+        var matchTracking = (r.trackingNumber || '').toLowerCase().indexOf(q) !== -1;
+        var matchOrderSn = (r.orderSn || '').toLowerCase().indexOf(q) !== -1;
+        var matchReturnCode = (r.returnCode || '').toLowerCase().indexOf(q) !== -1;
+        var matchOrderCode = (r.originalOrderCode || '').toLowerCase().indexOf(q) !== -1;
+        var matchPhone = (r.customerPhone || '').toLowerCase().indexOf(q) !== -1;
+        var matchName = (r.customerName || '').toLowerCase().indexOf(q) !== -1;
+        var matchSkuOld = (r.skuOld || '').toLowerCase().indexOf(q) !== -1;
+        var matchSkuNew = (r.skuNew || '').toLowerCase().indexOf(q) !== -1;
+        return matchTracking || matchOrderSn || matchReturnCode || matchOrderCode || matchPhone || matchName || matchSkuOld || matchSkuNew;
+      });
+    }
+
+    if (filtered.length === 0) {
+      tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:30px;color:#64748B;">' +
+        (q ? ('Không tìm thấy đơn hoàn nào khớp với từ khóa/mã quét: <strong>' + escapeHtml(q) + '</strong>') : 'Chưa có yêu cầu hoàn hoặc đổi hàng.') +
+        '</td></tr>';
+      return;
+    }
+
+    var html = '';
+    filtered.forEach(function(r) {
+      var spxCol = '';
+      if (r.trackingNumber) {
+        var targetSn = r.orderSn || r.trackingNumber;
+        spxCol = '<div style="font-size:15px;font-weight:800;color:var(--spx-orange);">' +
+                   '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn) + '" target="_blank" style="color:var(--spx-orange);text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' +
+                     escapeHtml(r.trackingNumber) + ' 📄' +
+                   '</a>' +
+                 '</div>' +
+                 '<div style="font-size:11px;color:#64748B;margin-top:2px;">Đơn gốc: <strong>' + escapeHtml(r.originalOrderCode || '-') + '</strong></div>';
+      } else {
+        spxCol = '<div style="font-weight:700;color:#94A3B8;">Chưa có mã SPX</div>' +
+                 '<div style="font-size:11px;color:#64748B;margin-top:2px;">Đơn gốc: <strong>' + escapeHtml(r.originalOrderCode || '-') + '</strong></div>';
+      }
+
+      var statusBadge = '';
+      if (r.status === 'RETURNING' || r.status === 'REQUESTED') {
+        statusBadge = '<span class="badge" style="background:#FFF7ED;color:#C2410C;border:1px solid #FDBA74;font-weight:700;">⏳ Chờ QC</span>';
+      } else if (r.status === 'RECEIVED_PASS') {
+        statusBadge = '<span class="badge" style="background:#ECFDF5;color:#047857;border:1px solid #A7F3D0;font-weight:700;">✅ QC Đạt</span>';
+      } else if (r.status === 'RECEIVED_FAIL') {
+        statusBadge = '<span class="badge" style="background:#FEF2F2;color:#B91C1C;border:1px solid #FECACA;font-weight:700;">❌ QC Lỗi</span>';
+      } else {
+        statusBadge = '<span class="badge badge-' + String(r.status).toLowerCase() + '">' + escapeHtml(r.status) + '</span>';
+      }
+
+      var actions = '';
+      if (r.status === 'RETURNING' || r.status === 'REQUESTED') {
+        actions = '<div style="display:flex;gap:6px;justify-content:center;">' +
+                    '<button class="btn btn-success btn-sm" onclick="processReturnQcAction(\'' + r.id + '\', true, \'' + escapeHtml(r.trackingNumber || r.returnCode) + '\')" title="Hàng đạt chuẩn nguyên vẹn: Tự động cộng lại tồn kho bán ngay" style="font-weight:700;padding:4px 8px;">QC Đạt</button> ' +
+                    '<button class="btn btn-danger btn-sm" onclick="processReturnQcAction(\'' + r.id + '\', false, \'' + escapeHtml(r.trackingNumber || r.returnCode) + '\')" title="Hàng lỗi hỏng: Chuyển vào kho lỗi riêng" style="font-weight:700;padding:4px 8px;">QC Lỗi</button>' +
+                  '</div>';
+      } else {
+        actions = '<span style="color:#047857;font-weight:600;font-size:12px;">✔️ Đã kiểm kho</span>';
+      }
+
+      html += '<tr id="return-row-' + r.id + '">' +
+        '<td>' + spxCol + '</td>' +
+        '<td><strong>' + escapeHtml(r.returnCode) + '</strong></td>' +
+        '<td><div><strong>' + escapeHtml(r.customerName || 'Khách lẻ') + '</strong></div><div style="font-size:12px;color:#475569;">📞 ' + escapeHtml(r.customerPhone || '-') + '</div></td>' +
+        '<td><span class="badge" style="background:#F1F5F9;color:#0F172A;font-weight:700;font-size:13px;border:1px solid #CBD5E1;">' + escapeHtml(r.skuOld) + '</span></td>' +
+        '<td>' + (r.skuNew ? ('<span class="badge" style="background:#EFF6FF;color:#1E40AF;font-weight:700;border:1px solid #BFDBFE;">' + escapeHtml(r.skuNew) + '</span>') : '<span style="color:#94A3B8;">-</span>') + '</td>' +
+        '<td>' + (r.returnType === 'EXCHANGE' ? '<span style="color:#2563EB;font-weight:700;">🔄 Đổi size</span>' : '<span style="color:#DC2626;font-weight:700;">↩️ Hoàn đơn</span>') + '</td>' +
+        '<td>' + statusBadge + '</td>' +
+        '<td><div>' + escapeHtml(r.inspectedBy || '-') + '</div>' + (r.notes ? ('<div style="font-size:11px;color:#64748B;" title="' + escapeHtml(r.notes) + '">' + escapeHtml(r.notes) + '</div>') : '') + '</td>' +
+        '<td style="text-align:center;">' + actions + '</td>' +
+      '</tr>';
+    });
+
+    tbody.innerHTML = html;
+  }
+
+  function handleReturnSearchKey(event) {
+    state.returnSearchQuery = event.target.value;
+    renderReturnsTable();
+
+    // Hỗ trợ súng quét mã vạch: khi quét tem SPX và bấm Enter
+    if (event.key === 'Enter') {
+      executeReturnSearch(true);
+    }
+  }
+
+  function executeReturnSearch(isBarcodeEnter) {
+    var input = document.getElementById('returnSearchInput');
+    if (input) state.returnSearchQuery = input.value;
+    renderReturnsTable();
+
+    if (isBarcodeEnter) {
+      var q = (state.returnSearchQuery || '').trim().toLowerCase();
+      if (!q) return;
+
+      var list = state.rawReturnsList || [];
+      var matched = list.filter(function(r) {
+        var matchTracking = (r.trackingNumber || '').toLowerCase() === q || (r.trackingNumber || '').toLowerCase().indexOf(q) !== -1;
+        var matchOrderSn = (r.orderSn || '').toLowerCase() === q;
+        var matchReturnCode = (r.returnCode || '').toLowerCase() === q;
+        var matchOrderCode = (r.originalOrderCode || '').toLowerCase() === q;
+        return matchTracking || matchOrderSn || matchReturnCode || matchOrderCode;
+      });
+
+      if (matched.length === 1 && (matched[0].status === 'RETURNING' || matched[0].status === 'REQUESTED')) {
+        // Tự động kích hoạt kiểm định QC cho đơn duy nhất vừa quét
+        var target = matched[0];
+        var row = document.getElementById('return-row-' + target.id);
+        if (row) {
+          row.style.background = '#FEF3C7';
+          setTimeout(function() { row.style.background = ''; }, 3000);
+        }
+        promptBarcodeScanQc(target);
+      } else if (matched.length === 0) {
+        showToast('Không tìm thấy đơn hàng nào có mã SPX hoặc mã đơn: ' + q, 'warning');
+      }
+    }
+  }
+
+  function promptBarcodeScanQc(target) {
+    var label = target.trackingNumber ? ('Mã SPX: ' + target.trackingNumber) : ('Mã hoàn: ' + target.returnCode);
+    var choice = prompt(
+      '📦 ĐÃ QUÉT THẤY ĐƠN HOÀN:\n' + label + '\nĐơn: ' + target.originalOrderCode + ' - SKU Giày: ' + target.skuOld + '\n\n' +
+      'Nhập "1" để: [QC ĐẠT] (Hàng chuẩn -> Tự động nhập kho bán)\n' +
+      'Nhập "2" để: [QC LỖI] (Hàng hỏng -> Đưa vào kho lỗi)\n' +
+      'Bấm Cancel để hủy bỏ.',
+      '1'
+    );
+    if (!choice) return;
+    choice = choice.trim();
+    if (choice === '1') {
+      processReturnQcAction(target.id, true, label);
+    } else if (choice === '2') {
+      processReturnQcAction(target.id, false, label);
+    }
+  }
+
+  function resetReturnSearch() {
+    var input = document.getElementById('returnSearchInput');
+    if (input) input.value = '';
+    state.returnSearchQuery = '';
+    state.returnFilter = 'ALL';
+
+    // Cập nhật lại giao diện tab
+    var tabs = ['tabReturnAll', 'tabReturnWaiting', 'tabReturnPassed', 'tabReturnFailed'];
+    tabs.forEach(function(tid) {
+      var el = document.getElementById(tid);
+      if (el) el.classList.remove('active');
+    });
+    if (document.getElementById('tabReturnAll')) document.getElementById('tabReturnAll').classList.add('active');
+
+    renderReturnsTable();
+  }
+
+  function setReturnFilter(filterType) {
+    state.returnFilter = filterType;
+    var tabMap = {
+      'ALL': 'tabReturnAll',
+      'WAITING': 'tabReturnWaiting',
+      'PASS': 'tabReturnPassed',
+      'FAIL': 'tabReturnFailed'
+    };
+    Object.keys(tabMap).forEach(function(k) {
+      var el = document.getElementById(tabMap[k]);
+      if (el) {
+        if (k === filterType) el.classList.add('active');
+        else el.classList.remove('active');
+      }
+    });
+    renderReturnsTable();
+  }
+
+  function processReturnQcAction(returnId, isPassed, label) {
+    var promptMsg = 'Nhập ghi chú kiểm định QC cho [' + (label || 'Đơn hoàn') + ']\n(' +
+      (isPassed ? '✅ HÀNG ĐẠT CHUẨN: Tự động cộng lại Tồn khả dụng để bán tiếp' : '❌ HÀNG LỖI: Đưa vào kho lỗi, không bán') + '):';
+    var defaultNote = isPassed ? 'Hàng nguyên tem mác đạt chuẩn' : 'Giày lỗi xước da/bẩn/móp hộp';
+    var note = prompt(promptMsg, defaultNote);
     if (note === null) return;
     callServer('apiProcessReturnInspection', [state.sessionToken, returnId, isPassed, note], function() {
-      showToast('Đã kiểm định QC thành công: ' + (isPassed ? 'Nhập lại tồn bán được' : 'Chuyển vào kho lỗi'), 'success');
+      showToast('Đã kiểm định QC thành công: ' + (isPassed ? 'Tái nhập kho bán được' : 'Chuyển vào kho lỗi'), 'success');
       loadReturnsList();
     });
   }

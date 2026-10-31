@@ -4065,9 +4065,18 @@ function getReturnsList(token) {
   requireAuth(token);
   var returns = readTableData(CONFIG.SHEETS.RETURNS);
   var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  
   var orderMap = {};
   for (var i = 0; i < orders.length; i++) {
     orderMap[orders[i].id] = orders[i];
+  }
+  
+  var shipMap = {};
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].orderId) {
+      shipMap[shipments[s].orderId] = shipments[s];
+    }
   }
   
   returns.sort(function(a, b) {
@@ -4077,9 +4086,18 @@ function getReturnsList(token) {
   return returns.map(function(r) {
     var origOrder = orderMap[r.originalOrderId] || {};
     var newOrder = orderMap[r.newOrderId] || {};
+    var origShip = shipMap[r.originalOrderId] || {};
+    var newShip = shipMap[r.newOrderId] || {};
+    
+    // Ưu tiên lấy Mã vận đơn SPX chuẩn từ bảng Shipments hoặc Orders
+    var spxTracking = r.trackingNumber || origShip.trackingNumber || origOrder.trackingNumber || '';
+    var spxOrderSn = origShip.orderSn || origOrder.orderSn || '';
+    
     return {
       id: r.id,
       returnCode: r.returnCode,
+      trackingNumber: spxTracking,
+      orderSn: spxOrderSn,
       originalOrderId: r.originalOrderId,
       originalOrderCode: origOrder.orderCode || '',
       customerName: origOrder.customerName || '',
