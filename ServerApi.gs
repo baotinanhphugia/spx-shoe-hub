@@ -118,15 +118,23 @@ function dispatchApiAction(action, payload, sessionToken) {
     case 'HANDOVER_SPX':
       return apiHandOverToSpx(sessionToken, payload.orderId);
     case 'GET_AIRWAY_BILL':
+    case 'apiGetAirwayBillHtml':
       return apiGetAirwayBillHtml(sessionToken, payload.orderId);
     case 'GET_BATCH_AIRWAY_BILLS':
-      return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
+    case 'apiGetBatchAirwayBillHtml':
+      return apiGetBatchAirwayBillHtml(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
     case 'BATCH_CREATE_SHIPMENTS':
-      return apiBatchCreateShipments(sessionToken, payload.orderIds);
+    case 'apiBatchCreateShipments':
+      return apiBatchCreateShipments(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
     case 'LINK_SPX_TRACKING':
+    case 'apiLinkSpxTracking':
       return apiLinkSpxTracking(sessionToken, payload.orderId, payload.trackingNumber, payload.notes);
     case 'BATCH_HANDOVER_SPX':
-      return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
+    case 'apiBatchHandOverToSpx':
+      return apiBatchHandOverToSpx(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
+    case 'GET_QUEUE_SUMMARY':
+    case 'apiGetQueueSummary':
+      return apiGetQueueSummary(sessionToken);
     case 'GET_RETURNS':
       return apiGetReturnsList(sessionToken);
     case 'PROCESS_RETURN_QC':
@@ -168,6 +176,7 @@ function dispatchApiAction(action, payload, sessionToken) {
     case 'DELETE_STAFF':
       return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
     case 'RESET_TEST_DATA':
+    case 'apiResetAllTestData':
       return apiResetAllTestData(sessionToken);
     default:
       return { success: false, error: 'Hành động không hợp lệ: ' + action };
@@ -377,7 +386,13 @@ function apiGetCustomersList(sessionToken, query) {
 // -------------------------------------------------------------
 function apiRequestShipment(sessionToken, orderId, weightG, notes) {
   return apiCall(function() {
-    return requestShipmentCreation(sessionToken, orderId, weightG, notes);
+    var res = requestShipmentCreation(sessionToken, orderId, weightG, notes);
+    try {
+      executeCreateShipmentJob({ orderId: orderId, weightG: weightG || 800, notes: notes });
+    } catch (e) {
+      Logger.log('executeCreateShipmentJob notice: ' + e.message);
+    }
+    return res;
   });
 }
 
@@ -409,7 +424,12 @@ function apiBatchCreateShipments(sessionToken, orderIds) {
     var errors = [];
     for (var i = 0; i < list.length; i++) {
       try {
-        requestShipmentCreation(sessionToken, list[i]);
+        requestShipmentCreation(sessionToken, list[i], 800, 'Đẩy đơn hàng loạt sang SPX');
+        try {
+          executeCreateShipmentJob({ orderId: list[i], weightG: 800, notes: 'Đẩy đơn hàng loạt sang SPX' });
+        } catch (execErr) {
+          Logger.log('executeCreateShipmentJob notice for ' + list[i] + ': ' + execErr.message);
+        }
         successCount++;
       } catch (e) {
         errors.push(list[i] + ': ' + e.message);

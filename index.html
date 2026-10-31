@@ -1897,6 +1897,18 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         return { action: 'SAVE_SETTINGS', payload: args[1], sessionToken: token };
       case 'apiTestSpxConnection':
         return { action: 'TEST_SPX', payload: {}, sessionToken: token };
+      case 'apiGetBatchAirwayBillHtml':
+        return { action: 'GET_BATCH_AIRWAY_BILLS', payload: { orderIds: args[1] }, sessionToken: token };
+      case 'apiBatchCreateShipments':
+        return { action: 'BATCH_CREATE_SHIPMENTS', payload: { orderIds: args[1] }, sessionToken: token };
+      case 'apiBatchHandOverToSpx':
+        return { action: 'BATCH_HANDOVER_SPX', payload: { orderIds: args[1] }, sessionToken: token };
+      case 'apiLinkSpxTracking':
+        return { action: 'LINK_SPX_TRACKING', payload: { orderId: args[1], trackingNumber: args[2], notes: args[3] }, sessionToken: token };
+      case 'apiResetAllTestData':
+        return { action: 'RESET_TEST_DATA', payload: {}, sessionToken: token };
+      case 'apiGetQueueSummary':
+        return { action: 'GET_QUEUE_SUMMARY', payload: {}, sessionToken: token };
       case 'apiProcessJobQueueNow':
         return { action: 'PROCESS_QUEUE', payload: {}, sessionToken: token };
       case 'apiRunSystemTests':

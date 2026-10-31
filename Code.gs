@@ -1,17 +1,11 @@
-/**
- * CODE.GS - TỔNG HỢP TOÀN BỘ BACKEND VÀ REST API CHO DỰ ÁN VẬN ĐƠN SPX & QUẢN LÝ KHO GIÀY
- * Bao gồm đầy đủ 14 Modules backend chuẩn Google Apps Script runtime V8.
- * Tích hợp sẵn RESTful API phục vụ Frontend chạy trên GitHub Pages và CSDL Google Sheets.
- * Hỗ trợ toàn diện Thêm - Sửa - Xóa cho Sản phẩm, Biến thể SKU, Khách hàng và Nhân sự.
- * Tích hợp In tem vận đơn SPX hàng loạt (Batch Airway Bill Print A6/A7 Code128 SVG) và Smart Address Parser.
- * Hỗ trợ Quy trình thật 100%: Gán mã SPX thật (SPXVN...) và Mở trực tiếp File In PDF chuẩn từ SPX.vn.
- * Tích hợp kết nối trực tiếp API SPX Express thật 100% (Nonce Token, batch_check_order, batch_create_order).
- * 17/17 Tiêu chí kiểm thử nghiệp vụ nghiệm thu ĐẠT 100%.
- */
+// =============================================================
+// CODE.GS - TỔNG HỢP TOÀN BỘ BACKEND SPX SHOE HUB
+// Tự động xuất từ các module độc lập. Ngày tạo: 2026-10-31T12:03:15.911Z
+// =============================================================
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Config.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Config.gs - Cấu hình hệ thống, Enums và Hằng số quản trị
  * Runtime: V8, Múi giờ: Asia/Ho_Chi_Minh
@@ -213,9 +207,9 @@ function generateMockTrackingNumber() {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Database.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Database.gs - Lớp truy xuất, khởi tạo schema và giao tác dữ liệu Google Sheets
  * Đảm bảo: Khóa LockService chống xung đột, ghi hàng loạt (batching), chống chèn công thức.
@@ -900,9 +894,65 @@ function backupDatabase() {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
+// MODULE: AuditLog.gs
+// -------------------------------------------------------------
+/**
+ * AuditLog.gs - Ghi nhận nhật ký kiểm toán và theo dõi thay đổi dữ liệu
+ * Giữ vững tính minh bạch, hỗ trợ điều tra lỗi và kiểm soát bảo mật.
+ */
+
+/**
+ * Ghi một bản ghi nhật ký kiểm toán
+ */
+function logAuditAction(action, entity, entityId, detail, performedBy) {
+  try {
+    var now = getNowIsoString();
+    var cleanDetail = sanitizeAuditDetail(detail);
+    var entry = {
+      id: generateId('AUD'),
+      action: action,
+      entity: entity,
+      entityId: String(entityId || ''),
+      detail: cleanDetail,
+      performedBy: String(performedBy || 'System'),
+      createdAt: now
+    };
+    insertRow(CONFIG.SHEETS.AUDIT_LOGS, entry);
+  } catch (e) {
+    Logger.log('Lỗi ghi AuditLog: ' + e.message);
+  }
+}
+
+/**
+ * Che dấu các chuỗi nhạy cảm (Secret, Token, Mật khẩu) trong nội dung nhật ký
+ */
+function sanitizeAuditDetail(detail) {
+  if (!detail) return '';
+  var text = typeof detail === 'string' ? detail : JSON.stringify(detail);
+  // Che mã bí mật
+  text = text.replace(/(pin|password|secret|token|key)\s*[:=]\s*["']?([^"',\s]+)/gi, '$1: ***');
+  return text;
+}
+
+/**
+ * Lấy danh sách nhật ký kiểm toán gần nhất (Chỉ Admin)
+ */
+function getRecentAuditLogs(token, limit) {
+  requireRole(token, [CONFIG.ROLES.ADMIN]);
+  var logs = readTableData(CONFIG.SHEETS.AUDIT_LOGS);
+  var max = limit || 100;
+  // Sắp xếp giảm dần theo thời gian
+  logs.sort(function(a, b) {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  return logs.slice(0, max);
+}
+
+
+// -------------------------------------------------------------
 // MODULE: Auth.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Auth.gs - Quản lý danh tính, phiên làm việc và phân quyền RBAC
  * Xử lý: Google Workspace / Gmail cá nhân, Session Cache, kiểm tra quyền nghiêm ngặt phía server.
@@ -1193,9 +1243,9 @@ function deleteStaffUser(token, staffId) {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Products.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Products.gs - Quản lý Sản phẩm, Mẫu, Màu, Size và Biến thể SKU
  * Cấu trúc: Nhóm -> Mẫu (Model) -> Biến thể (Mẫu + Màu + Size = SKU)
@@ -1469,9 +1519,9 @@ function deleteVariant(token, sku) {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Inventory.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Inventory.gs - Quản lý Tồn kho đa trạng thái, Khóa giao tác chống bán trùng (Anti-overselling)
  * và Ma trận Tồn Mẫu-Màu-Size
@@ -1919,9 +1969,9 @@ function getSkuMovementHistory(token, sku) {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Orders.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Orders.gs - Quản lý Vòng đời Đơn hàng, Lưu nháp, Chốt đơn, Tính toán tài chính
  * và Chuẩn hóa địa chỉ hành chính Việt Nam cho SPX
@@ -2739,9 +2789,769 @@ function linkRealSpxTracking(token, orderId, trackingNumber, notes) {
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
+// MODULE: Returns.gs
+// -------------------------------------------------------------
+/**
+ * Returns.gs - Quản lý Hàng hoàn và Quy trình Kiểm định chất lượng (QC)
+ * Phân loại rạch ròi: Đạt chuẩn -> Bán lại; Lỗi hỏng -> Kho lỗi riêng biệt.
+ */
+
+/**
+ * Lấy danh sách yêu cầu hàng hoàn / đổi hàng
+ */
+function getReturnsList(token) {
+  requireAuth(token);
+  var returns = readTableData(CONFIG.SHEETS.RETURNS);
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  
+  var orderMap = {};
+  for (var i = 0; i < orders.length; i++) {
+    orderMap[orders[i].id] = orders[i];
+  }
+  
+  var shipMap = {};
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].orderId) {
+      shipMap[shipments[s].orderId] = shipments[s];
+    }
+  }
+  
+  returns.sort(function(a, b) {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  
+  return returns.map(function(r) {
+    var origOrder = orderMap[r.originalOrderId] || {};
+    var newOrder = orderMap[r.newOrderId] || {};
+    var origShip = shipMap[r.originalOrderId] || {};
+    var newShip = shipMap[r.newOrderId] || {};
+    
+    // Ưu tiên lấy Mã vận đơn SPX chuẩn từ bảng Shipments hoặc Orders
+    var spxTracking = r.trackingNumber || origShip.trackingNumber || origOrder.trackingNumber || '';
+    var spxOrderSn = origShip.orderSn || origOrder.orderSn || '';
+    
+    return {
+      id: r.id,
+      returnCode: r.returnCode,
+      trackingNumber: spxTracking,
+      orderSn: spxOrderSn,
+      originalOrderId: r.originalOrderId,
+      originalOrderCode: origOrder.orderCode || '',
+      customerName: origOrder.customerName || '',
+      customerPhone: origOrder.customerPhone || '',
+      newOrderId: r.newOrderId,
+      newOrderCode: newOrder.orderCode || '',
+      skuOld: r.skuOld,
+      skuNew: r.skuNew,
+      returnType: r.returnType,
+      status: r.status,
+      feeDifference: Number(r.feeDifference) || 0,
+      inspectedBy: r.inspectedBy,
+      notes: r.notes,
+      createdAt: r.createdAt
+    };
+  });
+}
+
+/**
+ * KHO KIỂM TRA HÀNG HOÀN THỰC NHẬN VÀ PHÂN LOẠI QC
+ */
+function processReturnInspection(token, returnId, isPassed, notes) {
+  var user = requireRole(token, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+  var returns = readTableData(CONFIG.SHEETS.RETURNS);
+  var ret = null;
+  for (var i = 0; i < returns.length; i++) {
+    if (returns[i].id === returnId) {
+      ret = returns[i];
+      break;
+    }
+  }
+  if (!ret) throw new Error('Không tìm thấy bản ghi hoàn hàng: ' + returnId);
+  
+  if (ret.status === CONFIG.RETURN_STATUS.RECEIVED_PASS || ret.status === CONFIG.RETURN_STATUS.RECEIVED_FAIL || ret.status === CONFIG.RETURN_STATUS.CLOSED) {
+    throw new Error('Hàng hoàn này đã được kiểm định QC trước đó (' + ret.status + ').');
+  }
+  
+  // Thực hiện QC tồn kho nguyên tử
+  receiveReturnQc(returnId, ret.skuOld, 1, isPassed, user.fullName, notes);
+  
+  var now = getNowIsoString();
+  var newStatus = isPassed ? CONFIG.RETURN_STATUS.RECEIVED_PASS : CONFIG.RETURN_STATUS.RECEIVED_FAIL;
+  
+  updateRowByKey(CONFIG.SHEETS.RETURNS, 'id', returnId, {
+    status: newStatus,
+    inspectedBy: user.fullName,
+    notes: (ret.notes ? (ret.notes + ' | QC: ') : 'QC: ') + (notes || (isPassed ? 'Đạt chuẩn' : 'Lỗi/hư hại')),
+    updatedAt: now
+  });
+  
+  // Cập nhật trạng thái đơn hàng gốc sang RETURNED
+  updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', ret.originalOrderId, {
+    shippingStatus: CONFIG.SHIPPING_STATUS.RETURNED,
+    updatedAt: now
+  });
+  
+  logAuditAction('QC_RETURN', 'Returns', returnId, (isPassed ? 'QC ĐẠT' : 'QC LỖI') + ' - SKU: ' + ret.skuOld, user.fullName);
+  return { success: true, status: newStatus };
+}
+
+
+// -------------------------------------------------------------
+// MODULE: Reconciliation.gs
+// -------------------------------------------------------------
+/**
+ * Reconciliation.gs - Quản lý Đối soát COD, Cước vận chuyển và Xác nhận Tiền về ngân hàng
+ * Chống nhập trùng khoản thanh toán, hỗ trợ tải file CSV xem trước trước khi ghi dữ liệu thật.
+ */
+
+/**
+ * Phân tích và xem trước dữ liệu CSV đối soát SPX
+ */
+function previewReconciliationCsv(token, csvText) {
+  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
+  
+  if (!csvText || typeof csvText !== 'string' || csvText.trim() === '') {
+    throw new Error('Nội dung file CSV trống.');
+  }
+  
+  var lines = csvText.split(/\r?\n/).filter(function(line) {
+    return line.trim() !== '';
+  });
+  
+  if (lines.length < 2) {
+    throw new Error('File CSV không đủ dữ liệu (yêu cầu ít nhất 1 dòng tiêu đề và 1 dòng dữ liệu).');
+  }
+  
+  // Đọc danh mục hiện tại để đối chiếu
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var payments = readTableData(CONFIG.SHEETS.PAYMENTS);
+  
+  var shipMapByTracking = {};
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].trackingNumber) {
+      shipMapByTracking[shipments[s].trackingNumber.trim()] = shipments[s];
+    }
+  }
+  
+  var orderMapById = {};
+  for (var o = 0; o < orders.length; o++) {
+    orderMapById[orders[o].id] = orders[o];
+  }
+  
+  // Kiểm tra các mã vận đơn ĐÃ ĐƯỢC ĐỐI SOÁT TRƯỚC ĐÓ trong bảng Payments
+  var reconciledTrackingSet = {};
+  for (var p = 0; p < payments.length; p++) {
+    if (payments[p].trackingNumber && payments[p].status === CONFIG.PAYMENT_STATUS.RECONCILED) {
+      reconciledTrackingSet[payments[p].trackingNumber.trim()] = true;
+    }
+  }
+  
+  // Parse từng dòng
+  var headerLine = lines[0];
+  var previewRows = [];
+  var totalCod = 0;
+  var totalFees = 0;
+  var totalNet = 0;
+  var matchedCount = 0;
+  var duplicateCount = 0;
+  var notFoundCount = 0;
+  
+  for (var i = 1; i < lines.length; i++) {
+    var rawCols = parseCsvLine(lines[i]);
+    if (rawCols.length < 3) continue;
+    
+    // Cấu trúc cột mong đợi: TrackingNumber, CodAmount, ShippingFee, NetAmount
+    var tracking = String(rawCols[0] || '').trim();
+    var cod = Math.round(Number(String(rawCols[1] || '').replace(/[^\d.-]/g, '')) || 0);
+    var fee = Math.round(Number(String(rawCols[2] || '').replace(/[^\d.-]/g, '')) || 0);
+    var net = rawCols.length >= 4 ? Math.round(Number(String(rawCols[3] || '').replace(/[^\d.-]/g, '')) || 0) : (cod - fee);
+    
+    var status = 'MATCHED';
+    var note = '';
+    var matchedOrder = null;
+    var ship = shipMapByTracking[tracking];
+    
+    if (reconciledTrackingSet[tracking]) {
+      status = 'ALREADY_RECONCILED';
+      note = 'Mã vận đơn này ĐÃ ĐƯỢC ĐỐI SOÁT trước đó trong hệ thống!';
+      duplicateCount++;
+    } else if (!ship) {
+      status = 'NOT_FOUND';
+      note = 'Không tìm thấy vận đơn này trong hệ thống shop.';
+      notFoundCount++;
+    } else {
+      matchedOrder = orderMapById[ship.orderId];
+      matchedCount++;
+      totalCod += cod;
+      totalFees += fee;
+      totalNet += net;
+    }
+    
+    previewRows.push({
+      lineIndex: i,
+      trackingNumber: tracking,
+      codAmount: cod,
+      shippingFee: fee,
+      netAmount: net,
+      status: status,
+      orderCode: matchedOrder ? matchedOrder.orderCode : '',
+      customerName: matchedOrder ? matchedOrder.customerName : '',
+      expectedCod: matchedOrder ? Number(matchedOrder.codAmount) || 0 : 0,
+      note: note
+    });
+  }
+  
+  return {
+    rows: previewRows,
+    summary: {
+      totalRows: previewRows.length,
+      matchedCount: matchedCount,
+      duplicateCount: duplicateCount,
+      notFoundCount: notFoundCount,
+      totalCod: totalCod,
+      totalFees: totalFees,
+      totalNet: totalNet
+    }
+  };
+}
+
+/**
+ * XÁC NHẬN VÀ GHI NHẬN ĐỢT ĐỐI SOÁT (Chỉ Đối Soát và Admin)
+ * Chống ghi đè hoặc nhân đôi khoản thanh toán
+ */
+function confirmReconciliationBatch(token, verifiedRows, batchNote) {
+  var user = requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
+  
+  if (!verifiedRows || verifiedRows.length === 0) {
+    throw new Error('Không có dòng đối soát hợp lệ nào để ghi nhận.');
+  }
+  
+  return withScriptLock(function() {
+    var now = getNowIsoString();
+    var batchId = generateId('REC');
+    var batchCode = 'DS-' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyyMMdd-HHmm");
+    
+    var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+    var shipMap = {};
+    for (var s = 0; s < shipments.length; s++) {
+      if (shipments[s].trackingNumber) {
+        shipMap[shipments[s].trackingNumber.trim()] = shipments[s];
+      }
+    }
+    
+    var existingPayments = readTableData(CONFIG.SHEETS.PAYMENTS);
+    var reconciledSet = {};
+    for (var p = 0; p < existingPayments.length; p++) {
+      if (existingPayments[p].trackingNumber && existingPayments[p].status === CONFIG.PAYMENT_STATUS.RECONCILED) {
+        reconciledSet[existingPayments[p].trackingNumber.trim()] = true;
+      }
+    }
+    
+    var paymentRecords = [];
+    var totalCod = 0;
+    var totalFees = 0;
+    var totalNet = 0;
+    var successCount = 0;
+    
+    for (var i = 0; i < verifiedRows.length; i++) {
+      var row = verifiedRows[i];
+      var tracking = String(row.trackingNumber || '').trim();
+      
+      // Bỏ qua các dòng đã đối soát hoặc không tìm thấy
+      if (row.status !== 'MATCHED' || reconciledSet[tracking]) continue;
+      
+      var ship = shipMap[tracking];
+      if (!ship) continue;
+      
+      var cod = Number(row.codAmount) || 0;
+      var fee = Number(row.shippingFee) || 0;
+      var net = Number(row.netAmount) || (cod - fee);
+      
+      paymentRecords.push({
+        id: generateId('PAY'),
+        paymentCode: 'PAY-' + tracking,
+        orderId: ship.orderId,
+        trackingNumber: tracking,
+        amount: cod,
+        fee: fee,
+        netAmount: net,
+        paymentType: 'COD',
+        status: CONFIG.PAYMENT_STATUS.RECONCILED,
+        reconciliationBatchId: batchId,
+        reconciledAt: now,
+        reconciledBy: user.fullName,
+        notes: row.note || 'Đối soát thành công đợt ' + batchCode,
+        createdAt: now
+      });
+      
+      // Đánh dấu đơn hàng là đã đối soát xong
+      updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', ship.orderId, {
+        paymentStatus: CONFIG.PAYMENT_STATUS.RECONCILED,
+        spxFee: fee,
+        updatedAt: now
+      });
+      
+      totalCod += cod;
+      totalFees += fee;
+      totalNet += net;
+      successCount++;
+      reconciledSet[tracking] = true;
+    }
+    
+    if (paymentRecords.length === 0) {
+      throw new Error('Tất cả các dòng gửi lên đều không hợp lệ hoặc đã được đối soát trước đó.');
+    }
+    
+    // Ghi nhận bản ghi Tổng đợt đối soát
+    insertRow(CONFIG.SHEETS.RECONCILIATIONS, {
+      id: batchId,
+      batchCode: batchCode,
+      totalOrders: successCount,
+      totalCod: totalCod,
+      totalFees: totalFees,
+      totalNet: totalNet,
+      status: 'CONFIRMED',
+      confirmedBy: user.fullName,
+      notes: batchNote || '',
+      createdAt: now
+    });
+    
+    // Ghi nhận chi tiết từng khoản thanh toán
+    insertRowsBatch(CONFIG.SHEETS.PAYMENTS, paymentRecords);
+    
+    logAuditAction('CONFIRM_RECONCILIATION', 'Reconciliations', batchId, 'Xác nhận đối soát đợt ' + batchCode + ' (' + successCount + ' đơn, Thực nhận: ' + totalNet.toLocaleString('vi-VN') + ' đ)', user.fullName);
+    
+    return {
+      success: true,
+      batchCode: batchCode,
+      processedOrders: successCount,
+      totalNet: totalNet
+    };
+  }, 30000);
+}
+
+/**
+ * Lấy danh sách lịch sử các đợt đối soát
+ */
+function getReconciliationHistory(token) {
+  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
+  var batches = readTableData(CONFIG.SHEETS.RECONCILIATIONS);
+  batches.sort(function(a, b) {
+    return new Date(b.createdAt) - new Date(a.createdAt);
+  });
+  return batches;
+}
+
+/**
+ * Lấy danh sách đơn hàng đã giao nhưng CHƯA ĐỐI SOÁT TIỀN (Pending COD)
+ */
+function getPendingCodOrders(token) {
+  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  
+  var shipMap = {};
+  for (var s = 0; s < shipments.length; s++) {
+    shipMap[shipments[s].orderId] = shipments[s];
+  }
+  
+  var pending = [];
+  for (var i = 0; i < orders.length; i++) {
+    var o = orders[i];
+    // Đã giao nhưng thanh toán chưa đối soát
+    if (o.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERED && o.paymentStatus !== CONFIG.PAYMENT_STATUS.RECONCILED) {
+      var ship = shipMap[o.id];
+      pending.push({
+        id: o.id,
+        orderCode: o.orderCode,
+        saleName: o.saleName,
+        customerName: o.customerName,
+        codAmount: Number(o.codAmount) || 0,
+        trackingNumber: ship ? ship.trackingNumber : '',
+        deliveredAt: ship ? ship.deliveredAt : o.updatedAt,
+        status: o.paymentStatus
+      });
+    }
+  }
+  
+  return pending;
+}
+
+/**
+ * Hàm phân tách dòng CSV an toàn, hỗ trợ dấu phẩy trong nháy kép
+ */
+function parseCsvLine(line) {
+  var row = [];
+  var inQuotes = false;
+  var current = '';
+  for (var i = 0; i < line.length; i++) {
+    var char = line.charAt(i);
+    if (char === '"') {
+      inQuotes = !inQuotes;
+    } else if (char === ',' && !inQuotes) {
+      row.push(current.trim());
+      current = '';
+    } else {
+      current += char;
+    }
+  }
+  row.push(current.trim());
+  return row;
+}
+
+
+// -------------------------------------------------------------
+// MODULE: Reports.gs
+// -------------------------------------------------------------
+/**
+ * Reports.gs - Báo cáo Doanh số Sale Đa chiều và Báo cáo Biến động Tồn kho
+ * Tách biệt rõ 2 góc nhìn:
+ * 1. Nhóm đơn chốt trong kỳ (Cohort/Accrual Basis)
+ * 2. Giao dịch thực tế phát sinh trong kỳ (Cash/Activity Basis)
+ */
+
+/**
+ * BÁO CÁO DOANH SỐ VÀ HIỆU QUẢ BÁN HÀNG
+ */
+function getSalesReport(token, options) {
+  var user = requireAuth(token);
+  var opts = options || {};
+  var basis = opts.basis || 'CONFIRM_DATE'; // 'CONFIRM_DATE' hoặc 'TRANSACTION_DATE'
+  var startDate = opts.startDate || '';
+  var endDate = opts.endDate || '';
+  var targetSaleId = opts.saleId || '';
+  
+  // Nếu người dùng là SALE thì chỉ được xem báo cáo của chính mình
+  if (user.role === CONFIG.ROLES.SALE) {
+    targetSaleId = user.userId;
+  }
+  
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var items = readTableData(CONFIG.SHEETS.ORDER_ITEMS);
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var payments = readTableData(CONFIG.SHEETS.PAYMENTS);
+  var returns = readTableData(CONFIG.SHEETS.RETURNS);
+  
+  var itemsByOrderId = {};
+  for (var i = 0; i < items.length; i++) {
+    var it = items[i];
+    if (!itemsByOrderId[it.orderId]) itemsByOrderId[it.orderId] = [];
+    itemsByOrderId[it.orderId].push(it);
+  }
+  
+  var shipMap = {};
+  for (var s = 0; s < shipments.length; s++) {
+    shipMap[shipments[s].orderId] = shipments[s];
+  }
+  
+  // Tổng hợp chỉ số
+  var metrics = {
+    confirmedOrders: 0,
+    confirmedPairs: 0,
+    confirmedMerchandiseValue: 0,
+    deliveredOrders: 0,
+    deliveredPairs: 0,
+    deliveredMerchandiseValue: 0,
+    cancelledOrders: 0,
+    deliveryFailedOrders: 0,
+    returnedOrders: 0,
+    pendingCodAmount: 0,
+    reconciledBankAmount: 0
+  };
+  
+  var salePerformanceMap = {};
+  
+  for (var o = 0; o < orders.length; o++) {
+    var ord = orders[o];
+    
+    // Lọc theo Sale nếu có
+    if (targetSaleId && ord.saleId !== targetSaleId) continue;
+    
+    // Khởi tạo bảng thành tích nhân viên
+    if (!salePerformanceMap[ord.saleId]) {
+      salePerformanceMap[ord.saleId] = {
+        saleId: ord.saleId,
+        saleName: ord.saleName,
+        confirmedOrders: 0,
+        confirmedPairs: 0,
+        confirmedValue: 0,
+        deliveredOrders: 0,
+        deliveredValue: 0,
+        reconciledCash: 0
+      };
+    }
+    
+    var ordItems = itemsByOrderId[ord.id] || [];
+    var pairCount = 0;
+    for (var p = 0; p < ordItems.length; p++) {
+      pairCount += (Number(ordItems[p].quantity) || 1);
+    }
+    
+    var ship = shipMap[ord.id];
+    var isDelivered = ord.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERED;
+    var isCancelled = ord.status === CONFIG.ORDER_STATUS.CANCELLED;
+    var isReturned = ord.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNED || ord.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNING;
+    var isFailed = ord.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERY_FAILED;
+    
+    // GÓC NHÌN 1: THEO NGÀY CHỐT ĐƠN (Cohort)
+    if (basis === 'CONFIRM_DATE') {
+      var confDate = ord.confirmedAt || ord.createdAt;
+      if (startDate && confDate < startDate) continue;
+      if (endDate && confDate > endDate + 'T23:59:59') continue;
+      
+      if (ord.status === CONFIG.ORDER_STATUS.CONFIRMED || ord.status === CONFIG.ORDER_STATUS.CLOSED) {
+        metrics.confirmedOrders++;
+        metrics.confirmedPairs += pairCount;
+        metrics.confirmedMerchandiseValue += (Number(ord.netRevenue) || 0);
+        
+        salePerformanceMap[ord.saleId].confirmedOrders++;
+        salePerformanceMap[ord.saleId].confirmedPairs += pairCount;
+        salePerformanceMap[ord.saleId].confirmedValue += (Number(ord.netRevenue) || 0);
+        
+        if (isDelivered) {
+          metrics.deliveredOrders++;
+          metrics.deliveredPairs += pairCount;
+          metrics.deliveredMerchandiseValue += (Number(ord.netRevenue) || 0);
+          salePerformanceMap[ord.saleId].deliveredOrders++;
+          salePerformanceMap[ord.saleId].deliveredValue += (Number(ord.netRevenue) || 0);
+        }
+      }
+      
+      if (isCancelled) metrics.cancelledOrders++;
+      if (isFailed) metrics.deliveryFailedOrders++;
+      if (isReturned) metrics.returnedOrders++;
+      
+      if (isDelivered && ord.paymentStatus !== CONFIG.PAYMENT_STATUS.RECONCILED) {
+        metrics.pendingCodAmount += (Number(ord.codAmount) || 0);
+      }
+      
+    // GÓC NHÌN 2: THEO PHÁT SINH GIAO DỊCH THỰC TẾ TRONG KỲ (Cash / Transaction Date)
+    } else {
+      // Đơn giao thành công trong kỳ
+      if (ship && ship.deliveredAt) {
+        if ((!startDate || ship.deliveredAt >= startDate) && (!endDate || ship.deliveredAt <= endDate + 'T23:59:59')) {
+          metrics.deliveredOrders++;
+          metrics.deliveredPairs += pairCount;
+          metrics.deliveredMerchandiseValue += (Number(ord.netRevenue) || 0);
+          salePerformanceMap[ord.saleId].deliveredOrders++;
+          salePerformanceMap[ord.saleId].deliveredValue += (Number(ord.netRevenue) || 0);
+        }
+      }
+      
+      // Đơn chốt trong kỳ
+      var cDate = ord.confirmedAt || ord.createdAt;
+      if ((!startDate || cDate >= startDate) && (!endDate || cDate <= endDate + 'T23:59:59')) {
+        if (ord.status === CONFIG.ORDER_STATUS.CONFIRMED || ord.status === CONFIG.ORDER_STATUS.CLOSED) {
+          metrics.confirmedOrders++;
+          metrics.confirmedPairs += pairCount;
+          metrics.confirmedMerchandiseValue += (Number(ord.netRevenue) || 0);
+          salePerformanceMap[ord.saleId].confirmedOrders++;
+          salePerformanceMap[ord.saleId].confirmedPairs += pairCount;
+          salePerformanceMap[ord.saleId].confirmedValue += (Number(ord.netRevenue) || 0);
+        }
+        if (isCancelled) metrics.cancelledOrders++;
+      }
+    }
+  }
+  
+  // Tính tổng tiền thực nhận về ngân hàng từ bảng Payments theo kỳ
+  for (var py = 0; py < payments.length; py++) {
+    var pay = payments[py];
+    var payDate = pay.reconciledAt || pay.createdAt;
+    if (startDate && payDate < startDate) continue;
+    if (endDate && payDate > endDate + 'T23:59:59') continue;
+    
+    if (pay.status === CONFIG.PAYMENT_STATUS.RECONCILED) {
+      metrics.reconciledBankAmount += (Number(pay.netAmount) || 0);
+    }
+  }
+  
+  var saleRankings = [];
+  var saleKeys = Object.keys(salePerformanceMap);
+  for (var k = 0; k < saleKeys.length; k++) {
+    saleRankings.push(salePerformanceMap[saleKeys[k]]);
+  }
+  saleRankings.sort(function(a, b) { return b.confirmedValue - a.confirmedValue; });
+  
+  return {
+    basis: basis,
+    startDate: startDate,
+    endDate: endDate,
+    metrics: metrics,
+    saleRankings: saleRankings
+  };
+}
+
+/**
+ * BÁO CÁO BIẾN ĐỘNG TỒN KHO VÀ ĐỐI CHIẾU NGUYÊN TẮC
+ * Tồn cuối = Tồn đầu + Nhập + Hoàn thực nhận - Xuất +/- Điều chỉnh
+ */
+function getInventoryAuditReport(token) {
+  requireRole(token, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+  
+  var stockList = readTableData(CONFIG.SHEETS.STOCK);
+  var variants = readTableData(CONFIG.SHEETS.VARIANTS);
+  var movements = readTableData(CONFIG.SHEETS.STOCK_MOVEMENTS);
+  
+  var varMap = {};
+  for (var v = 0; v < variants.length; v++) {
+    varMap[variants[v].sku] = variants[v];
+  }
+  
+  // Thống kê movements theo SKU
+  var movStats = {};
+  for (var m = 0; m < movements.length; m++) {
+    var mov = movements[m];
+    var sku = mov.sku;
+    if (!movStats[sku]) {
+      movStats[sku] = {
+        imports: 0,
+        exports: 0,
+        returnsPass: 0,
+        returnsFail: 0,
+        adjustUp: 0,
+        adjustDown: 0
+      };
+    }
+    var q = Number(mov.qty) || 0;
+    if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.IMPORT) movStats[sku].imports += q;
+    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.EXPORT_ORDER) movStats[sku].exports += q;
+    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.RETURN_PASS) movStats[sku].returnsPass += q;
+    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.RETURN_FAIL) movStats[sku].returnsFail += q;
+    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.ADJUST_UP) movStats[sku].adjustUp += q;
+    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.ADJUST_DOWN) movStats[sku].adjustDown += q;
+  }
+  
+  var report = [];
+  var totalActual = 0;
+  var totalSalable = 0;
+  var totalReserved = 0;
+  var totalAvailable = 0;
+  var totalShipping = 0;
+  var totalReturning = 0;
+  var totalDefective = 0;
+  
+  for (var s = 0; s < stockList.length; s++) {
+    var st = stockList[s];
+    var vInfo = varMap[st.sku] || {};
+    var ms = movStats[st.sku] || { imports: 0, exports: 0, returnsPass: 0, returnsFail: 0, adjustUp: 0, adjustDown: 0 };
+    
+    var actual = Number(st.stockActual) || 0;
+    var salable = Number(st.stockSalable) || 0;
+    var reserved = Number(st.stockReserved) || 0;
+    var available = Number(st.stockAvailable) || 0;
+    var shipping = Number(st.stockShipping) || 0;
+    var returning = Number(st.stockReturning) || 0;
+    var defective = Number(st.stockDefective) || 0;
+    
+    // Kiểm tra tính toàn vẹn: Tồn khả dụng = Tồn bán được - Hàng giữ
+    var isConsistent = available === (salable - reserved);
+    
+    totalActual += actual;
+    totalSalable += salable;
+    totalReserved += reserved;
+    totalAvailable += available;
+    totalShipping += shipping;
+    totalReturning += returning;
+    totalDefective += defective;
+    
+    report.push({
+      sku: st.sku,
+      modelCode: vInfo.modelCode || '',
+      color: vInfo.color || '',
+      size: vInfo.size || '',
+      stockActual: actual,
+      stockSalable: salable,
+      stockReserved: reserved,
+      stockAvailable: available,
+      stockShipping: shipping,
+      stockReturning: returning,
+      stockDefective: defective,
+      totalImported: ms.imports,
+      totalExported: ms.exports,
+      totalReturnPass: ms.returnsPass,
+      totalReturnFail: ms.returnsFail,
+      isConsistent: isConsistent
+    });
+  }
+  
+  return {
+    items: report,
+    summary: {
+      totalActual: totalActual,
+      totalSalable: totalSalable,
+      totalReserved: totalReserved,
+      totalAvailable: totalAvailable,
+      totalShipping: totalShipping,
+      totalReturning: totalReturning,
+      totalDefective: totalDefective
+    }
+  };
+}
+
+/**
+ * XUẤT BÁO CÁO RA DẠNG CSV (Có khử mã độc Formula Injection)
+ */
+function exportReportCsv(token, reportType, options) {
+  requireAuth(token);
+  var csvLines = [];
+  
+  if (reportType === 'SALES') {
+    var data = getSalesReport(token, options);
+    csvLines.push(['Nhan vien', 'Don chot', 'Doi chot', 'Doanh so chot (VND)', 'Don giao thanh cong', 'Doanh so da giao (VND)'].join(','));
+    for (var i = 0; i < data.saleRankings.length; i++) {
+      var sr = data.saleRankings[i];
+      csvLines.push([
+        '"' + sanitizeCsvValue(sr.saleName) + '"',
+        sr.confirmedOrders,
+        sr.confirmedPairs,
+        sr.confirmedValue,
+        sr.deliveredOrders,
+        sr.deliveredValue
+      ].join(','));
+    }
+  } else if (reportType === 'INVENTORY') {
+    var inv = getInventoryAuditReport(token);
+    csvLines.push(['SKU', 'Mau', 'Size', 'Ton kho thuc te', 'Ton ban duoc', 'Dang giu', 'Ton kha dung', 'Dang giao', 'Dang hoan', 'Hang loi'].join(','));
+    for (var j = 0; j < inv.items.length; j++) {
+      var it = inv.items[j];
+      csvLines.push([
+        '"' + sanitizeCsvValue(it.sku) + '"',
+        '"' + sanitizeCsvValue(it.color) + '"',
+        it.size,
+        it.stockActual,
+        it.stockSalable,
+        it.stockReserved,
+        it.stockAvailable,
+        it.stockShipping,
+        it.stockReturning,
+        it.stockDefective
+      ].join(','));
+    }
+  }
+  
+  return csvLines.join('\r\n');
+}
+
+/**
+ * Khử mã độc công thức cho ô CSV (Formula Injection Protection)
+ */
+function sanitizeCsvValue(val) {
+  if (!val) return '';
+  var s = String(val).replace(/"/g, '""');
+  if (s.length > 0 && ['=', '+', '-', '@'].indexOf(s.charAt(0)) !== -1) {
+    return "'" + s;
+  }
+  return s;
+}
+
+
+// -------------------------------------------------------------
 // MODULE: SpxAdapter.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * SpxAdapter.gs - Bộ điều hợp kết nối Vận chuyển SPX (Shopee Express)
  * Hỗ trợ 2 chế độ:
@@ -3646,9 +4456,9 @@ function renderBatchSpxAirwayBillHtml(orderIds) {
 
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Queue.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Queue.gs - Hàng đợi tác vụ bất đồng bộ bền vững (Persistent Job Queue)
  * và Trình xử lý định kỳ (Time-driven Trigger Worker)
@@ -4116,825 +4926,628 @@ function getQueueSummary(token) {
 }
 
 
-// =============================================================
-// MODULE: Returns.gs
-// =============================================================
+// -------------------------------------------------------------
+// MODULE: ServerApi.gs
+// -------------------------------------------------------------
 /**
- * Returns.gs - Quản lý Hàng hoàn và Quy trình Kiểm định chất lượng (QC)
- * Phân loại rạch ròi: Đạt chuẩn -> Bán lại; Lỗi hỏng -> Kho lỗi riêng biệt.
+ * ServerApi.gs - Cổng giao tiếp Frontend-Backend (google.script.run)
+ * Chuẩn hóa phản hồi: { success: true, data: ... } hoặc { success: false, error: '...' }
+ * Tuyệt đối không tin cậy vai trò từ client; xác thực người dùng tại mọi điểm vào.
  */
 
 /**
- * Lấy danh sách yêu cầu hàng hoàn / đổi hàng
+ * Phục vụ Giao diện Web App hoặc Cổng REST API (hỗ trợ GitHub Pages)
  */
-function getReturnsList(token) {
-  requireAuth(token);
-  var returns = readTableData(CONFIG.SHEETS.RETURNS);
-  var orders = readTableData(CONFIG.SHEETS.ORDERS);
-  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-  
-  var orderMap = {};
-  for (var i = 0; i < orders.length; i++) {
-    orderMap[orders[i].id] = orders[i];
-  }
-  
-  var shipMap = {};
-  for (var s = 0; s < shipments.length; s++) {
-    if (shipments[s].orderId) {
-      shipMap[shipments[s].orderId] = shipments[s];
-    }
-  }
-  
-  returns.sort(function(a, b) {
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-  
-  return returns.map(function(r) {
-    var origOrder = orderMap[r.originalOrderId] || {};
-    var newOrder = orderMap[r.newOrderId] || {};
-    var origShip = shipMap[r.originalOrderId] || {};
-    var newShip = shipMap[r.newOrderId] || {};
-    
-    // Ưu tiên lấy Mã vận đơn SPX chuẩn từ bảng Shipments hoặc Orders
-    var spxTracking = r.trackingNumber || origShip.trackingNumber || origOrder.trackingNumber || '';
-    var spxOrderSn = origShip.orderSn || origOrder.orderSn || '';
-    
-    return {
-      id: r.id,
-      returnCode: r.returnCode,
-      trackingNumber: spxTracking,
-      orderSn: spxOrderSn,
-      originalOrderId: r.originalOrderId,
-      originalOrderCode: origOrder.orderCode || '',
-      customerName: origOrder.customerName || '',
-      customerPhone: origOrder.customerPhone || '',
-      newOrderId: r.newOrderId,
-      newOrderCode: newOrder.orderCode || '',
-      skuOld: r.skuOld,
-      skuNew: r.skuNew,
-      returnType: r.returnType,
-      status: r.status,
-      feeDifference: Number(r.feeDifference) || 0,
-      inspectedBy: r.inspectedBy,
-      notes: r.notes,
-      createdAt: r.createdAt
-    };
-  });
-}
-
-/**
- * KHO KIỂM TRA HÀNG HOÀN THỰC NHẬN VÀ PHÂN LOẠI QC
- */
-function processReturnInspection(token, returnId, isPassed, notes) {
-  var user = requireRole(token, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
-  var returns = readTableData(CONFIG.SHEETS.RETURNS);
-  var ret = null;
-  for (var i = 0; i < returns.length; i++) {
-    if (returns[i].id === returnId) {
-      ret = returns[i];
-      break;
-    }
-  }
-  if (!ret) throw new Error('Không tìm thấy bản ghi hoàn hàng: ' + returnId);
-  
-  if (ret.status === CONFIG.RETURN_STATUS.RECEIVED_PASS || ret.status === CONFIG.RETURN_STATUS.RECEIVED_FAIL || ret.status === CONFIG.RETURN_STATUS.CLOSED) {
-    throw new Error('Hàng hoàn này đã được kiểm định QC trước đó (' + ret.status + ').');
-  }
-  
-  // Thực hiện QC tồn kho nguyên tử
-  receiveReturnQc(returnId, ret.skuOld, 1, isPassed, user.fullName, notes);
-  
-  var now = getNowIsoString();
-  var newStatus = isPassed ? CONFIG.RETURN_STATUS.RECEIVED_PASS : CONFIG.RETURN_STATUS.RECEIVED_FAIL;
-  
-  updateRowByKey(CONFIG.SHEETS.RETURNS, 'id', returnId, {
-    status: newStatus,
-    inspectedBy: user.fullName,
-    notes: (ret.notes ? (ret.notes + ' | QC: ') : 'QC: ') + (notes || (isPassed ? 'Đạt chuẩn' : 'Lỗi/hư hại')),
-    updatedAt: now
-  });
-  
-  // Cập nhật trạng thái đơn hàng gốc sang RETURNED
-  updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', ret.originalOrderId, {
-    shippingStatus: CONFIG.SHIPPING_STATUS.RETURNED,
-    updatedAt: now
-  });
-  
-  logAuditAction('QC_RETURN', 'Returns', returnId, (isPassed ? 'QC ĐẠT' : 'QC LỖI') + ' - SKU: ' + ret.skuOld, user.fullName);
-  return { success: true, status: newStatus };
-}
-
-
-// =============================================================
-// MODULE: Reconciliation.gs
-// =============================================================
-/**
- * Reconciliation.gs - Quản lý Đối soát COD, Cước vận chuyển và Xác nhận Tiền về ngân hàng
- * Chống nhập trùng khoản thanh toán, hỗ trợ tải file CSV xem trước trước khi ghi dữ liệu thật.
- */
-
-/**
- * Phân tích và xem trước dữ liệu CSV đối soát SPX
- */
-function previewReconciliationCsv(token, csvText) {
-  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
-  
-  if (!csvText || typeof csvText !== 'string' || csvText.trim() === '') {
-    throw new Error('Nội dung file CSV trống.');
-  }
-  
-  var lines = csvText.split(/\r?\n/).filter(function(line) {
-    return line.trim() !== '';
-  });
-  
-  if (lines.length < 2) {
-    throw new Error('File CSV không đủ dữ liệu (yêu cầu ít nhất 1 dòng tiêu đề và 1 dòng dữ liệu).');
-  }
-  
-  // Đọc danh mục hiện tại để đối chiếu
-  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-  var orders = readTableData(CONFIG.SHEETS.ORDERS);
-  var payments = readTableData(CONFIG.SHEETS.PAYMENTS);
-  
-  var shipMapByTracking = {};
-  for (var s = 0; s < shipments.length; s++) {
-    if (shipments[s].trackingNumber) {
-      shipMapByTracking[shipments[s].trackingNumber.trim()] = shipments[s];
-    }
-  }
-  
-  var orderMapById = {};
-  for (var o = 0; o < orders.length; o++) {
-    orderMapById[orders[o].id] = orders[o];
-  }
-  
-  // Kiểm tra các mã vận đơn ĐÃ ĐƯỢC ĐỐI SOÁT TRƯỚC ĐÓ trong bảng Payments
-  var reconciledTrackingSet = {};
-  for (var p = 0; p < payments.length; p++) {
-    if (payments[p].trackingNumber && payments[p].status === CONFIG.PAYMENT_STATUS.RECONCILED) {
-      reconciledTrackingSet[payments[p].trackingNumber.trim()] = true;
-    }
-  }
-  
-  // Parse từng dòng
-  var headerLine = lines[0];
-  var previewRows = [];
-  var totalCod = 0;
-  var totalFees = 0;
-  var totalNet = 0;
-  var matchedCount = 0;
-  var duplicateCount = 0;
-  var notFoundCount = 0;
-  
-  for (var i = 1; i < lines.length; i++) {
-    var rawCols = parseCsvLine(lines[i]);
-    if (rawCols.length < 3) continue;
-    
-    // Cấu trúc cột mong đợi: TrackingNumber, CodAmount, ShippingFee, NetAmount
-    var tracking = String(rawCols[0] || '').trim();
-    var cod = Math.round(Number(String(rawCols[1] || '').replace(/[^\d.-]/g, '')) || 0);
-    var fee = Math.round(Number(String(rawCols[2] || '').replace(/[^\d.-]/g, '')) || 0);
-    var net = rawCols.length >= 4 ? Math.round(Number(String(rawCols[3] || '').replace(/[^\d.-]/g, '')) || 0) : (cod - fee);
-    
-    var status = 'MATCHED';
-    var note = '';
-    var matchedOrder = null;
-    var ship = shipMapByTracking[tracking];
-    
-    if (reconciledTrackingSet[tracking]) {
-      status = 'ALREADY_RECONCILED';
-      note = 'Mã vận đơn này ĐÃ ĐƯỢC ĐỐI SOÁT trước đó trong hệ thống!';
-      duplicateCount++;
-    } else if (!ship) {
-      status = 'NOT_FOUND';
-      note = 'Không tìm thấy vận đơn này trong hệ thống shop.';
-      notFoundCount++;
-    } else {
-      matchedOrder = orderMapById[ship.orderId];
-      matchedCount++;
-      totalCod += cod;
-      totalFees += fee;
-      totalNet += net;
-    }
-    
-    previewRows.push({
-      lineIndex: i,
-      trackingNumber: tracking,
-      codAmount: cod,
-      shippingFee: fee,
-      netAmount: net,
-      status: status,
-      orderCode: matchedOrder ? matchedOrder.orderCode : '',
-      customerName: matchedOrder ? matchedOrder.customerName : '',
-      expectedCod: matchedOrder ? Number(matchedOrder.codAmount) || 0 : 0,
-      note: note
-    });
-  }
-  
-  return {
-    rows: previewRows,
-    summary: {
-      totalRows: previewRows.length,
-      matchedCount: matchedCount,
-      duplicateCount: duplicateCount,
-      notFoundCount: notFoundCount,
-      totalCod: totalCod,
-      totalFees: totalFees,
-      totalNet: totalNet
-    }
-  };
-}
-
-/**
- * XÁC NHẬN VÀ GHI NHẬN ĐỢT ĐỐI SOÁT (Chỉ Đối Soát và Admin)
- * Chống ghi đè hoặc nhân đôi khoản thanh toán
- */
-function confirmReconciliationBatch(token, verifiedRows, batchNote) {
-  var user = requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
-  
-  if (!verifiedRows || verifiedRows.length === 0) {
-    throw new Error('Không có dòng đối soát hợp lệ nào để ghi nhận.');
-  }
-  
-  return withScriptLock(function() {
-    var now = getNowIsoString();
-    var batchId = generateId('REC');
-    var batchCode = 'DS-' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "yyyyMMdd-HHmm");
-    
-    var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-    var shipMap = {};
-    for (var s = 0; s < shipments.length; s++) {
-      if (shipments[s].trackingNumber) {
-        shipMap[shipments[s].trackingNumber.trim()] = shipments[s];
-      }
-    }
-    
-    var existingPayments = readTableData(CONFIG.SHEETS.PAYMENTS);
-    var reconciledSet = {};
-    for (var p = 0; p < existingPayments.length; p++) {
-      if (existingPayments[p].trackingNumber && existingPayments[p].status === CONFIG.PAYMENT_STATUS.RECONCILED) {
-        reconciledSet[existingPayments[p].trackingNumber.trim()] = true;
-      }
-    }
-    
-    var paymentRecords = [];
-    var totalCod = 0;
-    var totalFees = 0;
-    var totalNet = 0;
-    var successCount = 0;
-    
-    for (var i = 0; i < verifiedRows.length; i++) {
-      var row = verifiedRows[i];
-      var tracking = String(row.trackingNumber || '').trim();
-      
-      // Bỏ qua các dòng đã đối soát hoặc không tìm thấy
-      if (row.status !== 'MATCHED' || reconciledSet[tracking]) continue;
-      
-      var ship = shipMap[tracking];
-      if (!ship) continue;
-      
-      var cod = Number(row.codAmount) || 0;
-      var fee = Number(row.shippingFee) || 0;
-      var net = Number(row.netAmount) || (cod - fee);
-      
-      paymentRecords.push({
-        id: generateId('PAY'),
-        paymentCode: 'PAY-' + tracking,
-        orderId: ship.orderId,
-        trackingNumber: tracking,
-        amount: cod,
-        fee: fee,
-        netAmount: net,
-        paymentType: 'COD',
-        status: CONFIG.PAYMENT_STATUS.RECONCILED,
-        reconciliationBatchId: batchId,
-        reconciledAt: now,
-        reconciledBy: user.fullName,
-        notes: row.note || 'Đối soát thành công đợt ' + batchCode,
-        createdAt: now
-      });
-      
-      // Đánh dấu đơn hàng là đã đối soát xong
-      updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', ship.orderId, {
-        paymentStatus: CONFIG.PAYMENT_STATUS.RECONCILED,
-        spxFee: fee,
-        updatedAt: now
-      });
-      
-      totalCod += cod;
-      totalFees += fee;
-      totalNet += net;
-      successCount++;
-      reconciledSet[tracking] = true;
-    }
-    
-    if (paymentRecords.length === 0) {
-      throw new Error('Tất cả các dòng gửi lên đều không hợp lệ hoặc đã được đối soát trước đó.');
-    }
-    
-    // Ghi nhận bản ghi Tổng đợt đối soát
-    insertRow(CONFIG.SHEETS.RECONCILIATIONS, {
-      id: batchId,
-      batchCode: batchCode,
-      totalOrders: successCount,
-      totalCod: totalCod,
-      totalFees: totalFees,
-      totalNet: totalNet,
-      status: 'CONFIRMED',
-      confirmedBy: user.fullName,
-      notes: batchNote || '',
-      createdAt: now
-    });
-    
-    // Ghi nhận chi tiết từng khoản thanh toán
-    insertRowsBatch(CONFIG.SHEETS.PAYMENTS, paymentRecords);
-    
-    logAuditAction('CONFIRM_RECONCILIATION', 'Reconciliations', batchId, 'Xác nhận đối soát đợt ' + batchCode + ' (' + successCount + ' đơn, Thực nhận: ' + totalNet.toLocaleString('vi-VN') + ' đ)', user.fullName);
-    
-    return {
-      success: true,
-      batchCode: batchCode,
-      processedOrders: successCount,
-      totalNet: totalNet
-    };
-  }, 30000);
-}
-
-/**
- * Lấy danh sách lịch sử các đợt đối soát
- */
-function getReconciliationHistory(token) {
-  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
-  var batches = readTableData(CONFIG.SHEETS.RECONCILIATIONS);
-  batches.sort(function(a, b) {
-    return new Date(b.createdAt) - new Date(a.createdAt);
-  });
-  return batches;
-}
-
-/**
- * Lấy danh sách đơn hàng đã giao nhưng CHƯA ĐỐI SOÁT TIỀN (Pending COD)
- */
-function getPendingCodOrders(token) {
-  requireRole(token, [CONFIG.ROLES.DOI_SOAT, CONFIG.ROLES.ADMIN]);
-  var orders = readTableData(CONFIG.SHEETS.ORDERS);
-  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-  
-  var shipMap = {};
-  for (var s = 0; s < shipments.length; s++) {
-    shipMap[shipments[s].orderId] = shipments[s];
-  }
-  
-  var pending = [];
-  for (var i = 0; i < orders.length; i++) {
-    var o = orders[i];
-    // Đã giao nhưng thanh toán chưa đối soát
-    if (o.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERED && o.paymentStatus !== CONFIG.PAYMENT_STATUS.RECONCILED) {
-      var ship = shipMap[o.id];
-      pending.push({
-        id: o.id,
-        orderCode: o.orderCode,
-        saleName: o.saleName,
-        customerName: o.customerName,
-        codAmount: Number(o.codAmount) || 0,
-        trackingNumber: ship ? ship.trackingNumber : '',
-        deliveredAt: ship ? ship.deliveredAt : o.updatedAt,
-        status: o.paymentStatus
-      });
-    }
-  }
-  
-  return pending;
-}
-
-/**
- * Hàm phân tách dòng CSV an toàn, hỗ trợ dấu phẩy trong nháy kép
- */
-function parseCsvLine(line) {
-  var row = [];
-  var inQuotes = false;
-  var current = '';
-  for (var i = 0; i < line.length; i++) {
-    var char = line.charAt(i);
-    if (char === '"') {
-      inQuotes = !inQuotes;
-    } else if (char === ',' && !inQuotes) {
-      row.push(current.trim());
-      current = '';
-    } else {
-      current += char;
-    }
-  }
-  row.push(current.trim());
-  return row;
-}
-
-
-// =============================================================
-// MODULE: Reports.gs
-// =============================================================
-/**
- * Reports.gs - Báo cáo Doanh số Sale Đa chiều và Báo cáo Biến động Tồn kho
- * Tách biệt rõ 2 góc nhìn:
- * 1. Nhóm đơn chốt trong kỳ (Cohort/Accrual Basis)
- * 2. Giao dịch thực tế phát sinh trong kỳ (Cash/Activity Basis)
- */
-
-/**
- * BÁO CÁO DOANH SỐ VÀ HIỆU QUẢ BÁN HÀNG
- */
-function getSalesReport(token, options) {
-  var user = requireAuth(token);
-  var opts = options || {};
-  var basis = opts.basis || 'CONFIRM_DATE'; // 'CONFIRM_DATE' hoặc 'TRANSACTION_DATE'
-  var startDate = opts.startDate || '';
-  var endDate = opts.endDate || '';
-  var targetSaleId = opts.saleId || '';
-  
-  // Nếu người dùng là SALE thì chỉ được xem báo cáo của chính mình
-  if (user.role === CONFIG.ROLES.SALE) {
-    targetSaleId = user.userId;
-  }
-  
-  var orders = readTableData(CONFIG.SHEETS.ORDERS);
-  var items = readTableData(CONFIG.SHEETS.ORDER_ITEMS);
-  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-  var payments = readTableData(CONFIG.SHEETS.PAYMENTS);
-  var returns = readTableData(CONFIG.SHEETS.RETURNS);
-  
-  var itemsByOrderId = {};
-  for (var i = 0; i < items.length; i++) {
-    var it = items[i];
-    if (!itemsByOrderId[it.orderId]) itemsByOrderId[it.orderId] = [];
-    itemsByOrderId[it.orderId].push(it);
-  }
-  
-  var shipMap = {};
-  for (var s = 0; s < shipments.length; s++) {
-    shipMap[shipments[s].orderId] = shipments[s];
-  }
-  
-  // Tổng hợp chỉ số
-  var metrics = {
-    confirmedOrders: 0,
-    confirmedPairs: 0,
-    confirmedMerchandiseValue: 0,
-    deliveredOrders: 0,
-    deliveredPairs: 0,
-    deliveredMerchandiseValue: 0,
-    cancelledOrders: 0,
-    deliveryFailedOrders: 0,
-    returnedOrders: 0,
-    pendingCodAmount: 0,
-    reconciledBankAmount: 0
-  };
-  
-  var salePerformanceMap = {};
-  
-  for (var o = 0; o < orders.length; o++) {
-    var ord = orders[o];
-    
-    // Lọc theo Sale nếu có
-    if (targetSaleId && ord.saleId !== targetSaleId) continue;
-    
-    // Khởi tạo bảng thành tích nhân viên
-    if (!salePerformanceMap[ord.saleId]) {
-      salePerformanceMap[ord.saleId] = {
-        saleId: ord.saleId,
-        saleName: ord.saleName,
-        confirmedOrders: 0,
-        confirmedPairs: 0,
-        confirmedValue: 0,
-        deliveredOrders: 0,
-        deliveredValue: 0,
-        reconciledCash: 0
-      };
-    }
-    
-    var ordItems = itemsByOrderId[ord.id] || [];
-    var pairCount = 0;
-    for (var p = 0; p < ordItems.length; p++) {
-      pairCount += (Number(ordItems[p].quantity) || 1);
-    }
-    
-    var ship = shipMap[ord.id];
-    var isDelivered = ord.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERED;
-    var isCancelled = ord.status === CONFIG.ORDER_STATUS.CANCELLED;
-    var isReturned = ord.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNED || ord.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNING;
-    var isFailed = ord.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERY_FAILED;
-    
-    // GÓC NHÌN 1: THEO NGÀY CHỐT ĐƠN (Cohort)
-    if (basis === 'CONFIRM_DATE') {
-      var confDate = ord.confirmedAt || ord.createdAt;
-      if (startDate && confDate < startDate) continue;
-      if (endDate && confDate > endDate + 'T23:59:59') continue;
-      
-      if (ord.status === CONFIG.ORDER_STATUS.CONFIRMED || ord.status === CONFIG.ORDER_STATUS.CLOSED) {
-        metrics.confirmedOrders++;
-        metrics.confirmedPairs += pairCount;
-        metrics.confirmedMerchandiseValue += (Number(ord.netRevenue) || 0);
-        
-        salePerformanceMap[ord.saleId].confirmedOrders++;
-        salePerformanceMap[ord.saleId].confirmedPairs += pairCount;
-        salePerformanceMap[ord.saleId].confirmedValue += (Number(ord.netRevenue) || 0);
-        
-        if (isDelivered) {
-          metrics.deliveredOrders++;
-          metrics.deliveredPairs += pairCount;
-          metrics.deliveredMerchandiseValue += (Number(ord.netRevenue) || 0);
-          salePerformanceMap[ord.saleId].deliveredOrders++;
-          salePerformanceMap[ord.saleId].deliveredValue += (Number(ord.netRevenue) || 0);
-        }
-      }
-      
-      if (isCancelled) metrics.cancelledOrders++;
-      if (isFailed) metrics.deliveryFailedOrders++;
-      if (isReturned) metrics.returnedOrders++;
-      
-      if (isDelivered && ord.paymentStatus !== CONFIG.PAYMENT_STATUS.RECONCILED) {
-        metrics.pendingCodAmount += (Number(ord.codAmount) || 0);
-      }
-      
-    // GÓC NHÌN 2: THEO PHÁT SINH GIAO DỊCH THỰC TẾ TRONG KỲ (Cash / Transaction Date)
-    } else {
-      // Đơn giao thành công trong kỳ
-      if (ship && ship.deliveredAt) {
-        if ((!startDate || ship.deliveredAt >= startDate) && (!endDate || ship.deliveredAt <= endDate + 'T23:59:59')) {
-          metrics.deliveredOrders++;
-          metrics.deliveredPairs += pairCount;
-          metrics.deliveredMerchandiseValue += (Number(ord.netRevenue) || 0);
-          salePerformanceMap[ord.saleId].deliveredOrders++;
-          salePerformanceMap[ord.saleId].deliveredValue += (Number(ord.netRevenue) || 0);
-        }
-      }
-      
-      // Đơn chốt trong kỳ
-      var cDate = ord.confirmedAt || ord.createdAt;
-      if ((!startDate || cDate >= startDate) && (!endDate || cDate <= endDate + 'T23:59:59')) {
-        if (ord.status === CONFIG.ORDER_STATUS.CONFIRMED || ord.status === CONFIG.ORDER_STATUS.CLOSED) {
-          metrics.confirmedOrders++;
-          metrics.confirmedPairs += pairCount;
-          metrics.confirmedMerchandiseValue += (Number(ord.netRevenue) || 0);
-          salePerformanceMap[ord.saleId].confirmedOrders++;
-          salePerformanceMap[ord.saleId].confirmedPairs += pairCount;
-          salePerformanceMap[ord.saleId].confirmedValue += (Number(ord.netRevenue) || 0);
-        }
-        if (isCancelled) metrics.cancelledOrders++;
-      }
-    }
-  }
-  
-  // Tính tổng tiền thực nhận về ngân hàng từ bảng Payments theo kỳ
-  for (var py = 0; py < payments.length; py++) {
-    var pay = payments[py];
-    var payDate = pay.reconciledAt || pay.createdAt;
-    if (startDate && payDate < startDate) continue;
-    if (endDate && payDate > endDate + 'T23:59:59') continue;
-    
-    if (pay.status === CONFIG.PAYMENT_STATUS.RECONCILED) {
-      metrics.reconciledBankAmount += (Number(pay.netAmount) || 0);
-    }
-  }
-  
-  var saleRankings = [];
-  var saleKeys = Object.keys(salePerformanceMap);
-  for (var k = 0; k < saleKeys.length; k++) {
-    saleRankings.push(salePerformanceMap[saleKeys[k]]);
-  }
-  saleRankings.sort(function(a, b) { return b.confirmedValue - a.confirmedValue; });
-  
-  return {
-    basis: basis,
-    startDate: startDate,
-    endDate: endDate,
-    metrics: metrics,
-    saleRankings: saleRankings
-  };
-}
-
-/**
- * BÁO CÁO BIẾN ĐỘNG TỒN KHO VÀ ĐỐI CHIẾU NGUYÊN TẮC
- * Tồn cuối = Tồn đầu + Nhập + Hoàn thực nhận - Xuất +/- Điều chỉnh
- */
-function getInventoryAuditReport(token) {
-  requireRole(token, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
-  
-  var stockList = readTableData(CONFIG.SHEETS.STOCK);
-  var variants = readTableData(CONFIG.SHEETS.VARIANTS);
-  var movements = readTableData(CONFIG.SHEETS.STOCK_MOVEMENTS);
-  
-  var varMap = {};
-  for (var v = 0; v < variants.length; v++) {
-    varMap[variants[v].sku] = variants[v];
-  }
-  
-  // Thống kê movements theo SKU
-  var movStats = {};
-  for (var m = 0; m < movements.length; m++) {
-    var mov = movements[m];
-    var sku = mov.sku;
-    if (!movStats[sku]) {
-      movStats[sku] = {
-        imports: 0,
-        exports: 0,
-        returnsPass: 0,
-        returnsFail: 0,
-        adjustUp: 0,
-        adjustDown: 0
-      };
-    }
-    var q = Number(mov.qty) || 0;
-    if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.IMPORT) movStats[sku].imports += q;
-    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.EXPORT_ORDER) movStats[sku].exports += q;
-    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.RETURN_PASS) movStats[sku].returnsPass += q;
-    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.RETURN_FAIL) movStats[sku].returnsFail += q;
-    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.ADJUST_UP) movStats[sku].adjustUp += q;
-    else if (mov.type === CONFIG.STOCK_MOVEMENT_TYPE.ADJUST_DOWN) movStats[sku].adjustDown += q;
-  }
-  
-  var report = [];
-  var totalActual = 0;
-  var totalSalable = 0;
-  var totalReserved = 0;
-  var totalAvailable = 0;
-  var totalShipping = 0;
-  var totalReturning = 0;
-  var totalDefective = 0;
-  
-  for (var s = 0; s < stockList.length; s++) {
-    var st = stockList[s];
-    var vInfo = varMap[st.sku] || {};
-    var ms = movStats[st.sku] || { imports: 0, exports: 0, returnsPass: 0, returnsFail: 0, adjustUp: 0, adjustDown: 0 };
-    
-    var actual = Number(st.stockActual) || 0;
-    var salable = Number(st.stockSalable) || 0;
-    var reserved = Number(st.stockReserved) || 0;
-    var available = Number(st.stockAvailable) || 0;
-    var shipping = Number(st.stockShipping) || 0;
-    var returning = Number(st.stockReturning) || 0;
-    var defective = Number(st.stockDefective) || 0;
-    
-    // Kiểm tra tính toàn vẹn: Tồn khả dụng = Tồn bán được - Hàng giữ
-    var isConsistent = available === (salable - reserved);
-    
-    totalActual += actual;
-    totalSalable += salable;
-    totalReserved += reserved;
-    totalAvailable += available;
-    totalShipping += shipping;
-    totalReturning += returning;
-    totalDefective += defective;
-    
-    report.push({
-      sku: st.sku,
-      modelCode: vInfo.modelCode || '',
-      color: vInfo.color || '',
-      size: vInfo.size || '',
-      stockActual: actual,
-      stockSalable: salable,
-      stockReserved: reserved,
-      stockAvailable: available,
-      stockShipping: shipping,
-      stockReturning: returning,
-      stockDefective: defective,
-      totalImported: ms.imports,
-      totalExported: ms.exports,
-      totalReturnPass: ms.returnsPass,
-      totalReturnFail: ms.returnsFail,
-      isConsistent: isConsistent
-    });
-  }
-  
-  return {
-    items: report,
-    summary: {
-      totalActual: totalActual,
-      totalSalable: totalSalable,
-      totalReserved: totalReserved,
-      totalAvailable: totalAvailable,
-      totalShipping: totalShipping,
-      totalReturning: totalReturning,
-      totalDefective: totalDefective
-    }
-  };
-}
-
-/**
- * XUẤT BÁO CÁO RA DẠNG CSV (Có khử mã độc Formula Injection)
- */
-function exportReportCsv(token, reportType, options) {
-  requireAuth(token);
-  var csvLines = [];
-  
-  if (reportType === 'SALES') {
-    var data = getSalesReport(token, options);
-    csvLines.push(['Nhan vien', 'Don chot', 'Doi chot', 'Doanh so chot (VND)', 'Don giao thanh cong', 'Doanh so da giao (VND)'].join(','));
-    for (var i = 0; i < data.saleRankings.length; i++) {
-      var sr = data.saleRankings[i];
-      csvLines.push([
-        '"' + sanitizeCsvValue(sr.saleName) + '"',
-        sr.confirmedOrders,
-        sr.confirmedPairs,
-        sr.confirmedValue,
-        sr.deliveredOrders,
-        sr.deliveredValue
-      ].join(','));
-    }
-  } else if (reportType === 'INVENTORY') {
-    var inv = getInventoryAuditReport(token);
-    csvLines.push(['SKU', 'Mau', 'Size', 'Ton kho thuc te', 'Ton ban duoc', 'Dang giu', 'Ton kha dung', 'Dang giao', 'Dang hoan', 'Hang loi'].join(','));
-    for (var j = 0; j < inv.items.length; j++) {
-      var it = inv.items[j];
-      csvLines.push([
-        '"' + sanitizeCsvValue(it.sku) + '"',
-        '"' + sanitizeCsvValue(it.color) + '"',
-        it.size,
-        it.stockActual,
-        it.stockSalable,
-        it.stockReserved,
-        it.stockAvailable,
-        it.stockShipping,
-        it.stockReturning,
-        it.stockDefective
-      ].join(','));
-    }
-  }
-  
-  return csvLines.join('\r\n');
-}
-
-/**
- * Khử mã độc công thức cho ô CSV (Formula Injection Protection)
- */
-function sanitizeCsvValue(val) {
-  if (!val) return '';
-  var s = String(val).replace(/"/g, '""');
-  if (s.length > 0 && ['=', '+', '-', '@'].indexOf(s.charAt(0)) !== -1) {
-    return "'" + s;
-  }
-  return s;
-}
-
-
-// =============================================================
-// MODULE: AuditLog.gs
-// =============================================================
-/**
- * AuditLog.gs - Ghi nhận nhật ký kiểm toán và theo dõi thay đổi dữ liệu
- * Giữ vững tính minh bạch, hỗ trợ điều tra lỗi và kiểm soát bảo mật.
- */
-
-/**
- * Ghi một bản ghi nhật ký kiểm toán
- */
-function logAuditAction(action, entity, entityId, detail, performedBy) {
+function doGet(e) {
   try {
-    var now = getNowIsoString();
-    var cleanDetail = sanitizeAuditDetail(detail);
-    var entry = {
-      id: generateId('AUD'),
-      action: action,
-      entity: entity,
-      entityId: String(entityId || ''),
-      detail: cleanDetail,
-      performedBy: String(performedBy || 'System'),
-      createdAt: now
-    };
-    insertRow(CONFIG.SHEETS.AUDIT_LOGS, entry);
-  } catch (e) {
-    Logger.log('Lỗi ghi AuditLog: ' + e.message);
+    setupDatabase();
+  } catch (err) {
+    Logger.log('doGet auto-setup notice: ' + err.message);
+  }
+  
+  // Nếu có tham số ?action=... thì xử lý dưới dạng REST API JSON (phục vụ GitHub Pages)
+  if (e && e.parameter && e.parameter.action) {
+    var action = e.parameter.action;
+    var sessionToken = e.parameter.sessionToken || '';
+    var payload = {};
+    if (e.parameter.data) {
+      try { payload = JSON.parse(e.parameter.data); } catch (ex) { payload = {}; }
+    }
+    var res = dispatchApiAction(action, payload, sessionToken);
+    return ContentService.createTextOutput(JSON.stringify(res))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  // Nếu truy cập trực tiếp URL Web App: phục vụ HTML Service
+  try {
+    var template = HtmlService.createTemplateFromFile('Index');
+    template.appName = CONFIG.APP_NAME;
+    template.shopName = getSystemSetting('SHOP_NAME', 'Bảo Tín Shoes');
+    
+    return template.evaluate()
+      .setTitle(CONFIG.APP_NAME + ' - ' + CONFIG.APP_SUBTITLE)
+      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
+      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
+  } catch (htmErr) {
+    // Nếu chưa tạo file Index trong Apps Script: trả về JSON báo trạng thái API
+    return ContentService.createTextOutput(JSON.stringify({
+      success: true,
+      status: 'ONLINE',
+      app: CONFIG.APP_NAME,
+      message: 'SPX Shoe Hub REST API đang hoạt động kết nối Google Sheets & GitHub Pages.',
+      time: getNowIsoString()
+    })).setMimeType(ContentService.MimeType.JSON);
   }
 }
 
 /**
- * Che dấu các chuỗi nhạy cảm (Secret, Token, Mật khẩu) trong nội dung nhật ký
+ * Xử lý các yêu cầu POST từ GitHub Pages (RESTful API Endpoint)
  */
-function sanitizeAuditDetail(detail) {
-  if (!detail) return '';
-  var text = typeof detail === 'string' ? detail : JSON.stringify(detail);
-  // Che mã bí mật
-  text = text.replace(/(pin|password|secret|token|key)\s*[:=]\s*["']?([^"',\s]+)/gi, '$1: ***');
-  return text;
+function doPost(e) {
+  var requestData = {};
+  try {
+    if (e && e.postData && e.postData.contents) {
+      requestData = JSON.parse(e.postData.contents);
+    }
+  } catch (err) {
+    return ContentService.createTextOutput(JSON.stringify({
+      success: false,
+      error: 'Dữ liệu JSON gửi lên không hợp lệ: ' + err.message
+    })).setMimeType(ContentService.MimeType.JSON);
+  }
+  
+  var action = requestData.action;
+  var payload = requestData.payload || {};
+  var sessionToken = requestData.sessionToken || '';
+  
+  var response = dispatchApiAction(action, payload, sessionToken);
+  return ContentService.createTextOutput(JSON.stringify(response))
+    .setMimeType(ContentService.MimeType.JSON);
 }
 
 /**
- * Lấy danh sách nhật ký kiểm toán gần nhất (Chỉ Admin)
+ * Điều phối các hành động API dùng chung cho cả doPost, doGet và google.script.run
  */
-function getRecentAuditLogs(token, limit) {
-  requireRole(token, [CONFIG.ROLES.ADMIN]);
-  var logs = readTableData(CONFIG.SHEETS.AUDIT_LOGS);
-  var max = limit || 100;
-  // Sắp xếp giảm dần theo thời gian
-  logs.sort(function(a, b) {
-    return new Date(b.createdAt) - new Date(a.createdAt);
+function dispatchApiAction(action, payload, sessionToken) {
+  switch (action) {
+    case 'LOGIN':
+      return apiLogin(payload.identifier, payload.pin);
+    case 'LOGOUT':
+      return apiLogout(sessionToken);
+    case 'GET_INITIAL_STATE':
+      return apiGetInitialState(sessionToken);
+    case 'GET_DASHBOARD':
+      return apiGetDashboardSummary(sessionToken);
+    case 'GET_CATALOG':
+      return apiGetProductsCatalog(sessionToken);
+    case 'SAVE_PRODUCT':
+      return apiSaveProduct(sessionToken, payload);
+    case 'BATCH_CREATE_VARIANTS':
+      return apiBatchCreateVariants(sessionToken, payload.modelCode, payload.colors, payload.sizes, payload.defaultPrice, payload.refWeightG);
+    case 'GET_INVENTORY_MATRIX':
+      return apiGetInventoryMatrix(sessionToken);
+    case 'GET_SKU_HISTORY':
+      return apiGetSkuMovementHistory(sessionToken, payload.sku);
+    case 'ADJUST_STOCK':
+      return apiAdjustStock(sessionToken, payload.sku, payload.adjustQty, payload.reason, payload.isIncrease);
+    case 'SAVE_ORDER':
+      return apiSaveOrder(sessionToken, payload.order || payload, payload.isConfirmNow);
+    case 'CONFIRM_DRAFT':
+      return apiConfirmDraftOrder(sessionToken, payload.orderId);
+    case 'CANCEL_ORDER':
+      return apiCancelOrder(sessionToken, payload.orderId, payload.reason);
+    case 'EXCHANGE_ORDER':
+      return apiCreateExchangeOrder(sessionToken, payload.originalOrderId, payload.oldSku, payload.newSku, payload.feeDifference, payload.notes);
+    case 'GET_ORDERS':
+      return apiGetOrdersList(sessionToken, payload.queryOptions || payload);
+    case 'GET_ORDER_DETAIL':
+      return apiGetOrderDetail(sessionToken, payload.orderId);
+    case 'GET_CUSTOMERS':
+      return apiGetCustomersList(sessionToken, payload.query);
+    case 'REQUEST_SHIPMENT':
+      return apiRequestShipment(sessionToken, payload.orderId, payload.weightG, payload.notes);
+    case 'HANDOVER_SPX':
+      return apiHandOverToSpx(sessionToken, payload.orderId);
+    case 'GET_AIRWAY_BILL':
+    case 'apiGetAirwayBillHtml':
+      return apiGetAirwayBillHtml(sessionToken, payload.orderId);
+    case 'GET_BATCH_AIRWAY_BILLS':
+    case 'apiGetBatchAirwayBillHtml':
+      return apiGetBatchAirwayBillHtml(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
+    case 'BATCH_CREATE_SHIPMENTS':
+    case 'apiBatchCreateShipments':
+      return apiBatchCreateShipments(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
+    case 'LINK_SPX_TRACKING':
+    case 'apiLinkSpxTracking':
+      return apiLinkSpxTracking(sessionToken, payload.orderId, payload.trackingNumber, payload.notes);
+    case 'BATCH_HANDOVER_SPX':
+    case 'apiBatchHandOverToSpx':
+      return apiBatchHandOverToSpx(sessionToken, (payload && payload.orderIds) ? payload.orderIds : payload);
+    case 'GET_QUEUE_SUMMARY':
+    case 'apiGetQueueSummary':
+      return apiGetQueueSummary(sessionToken);
+    case 'GET_RETURNS':
+      return apiGetReturnsList(sessionToken);
+    case 'PROCESS_RETURN_QC':
+      return apiProcessReturnInspection(sessionToken, payload.returnId, payload.isPassed, payload.notes);
+    case 'PREVIEW_RECONCILIATION':
+      return apiPreviewReconciliationCsv(sessionToken, payload.csvText);
+    case 'CONFIRM_RECONCILIATION':
+      return apiConfirmReconciliationBatch(sessionToken, payload.verifiedRows, payload.batchNote);
+    case 'GET_PENDING_COD':
+      return apiGetPendingCodOrders(sessionToken);
+    case 'GET_SALES_REPORT':
+      return apiGetSalesReport(sessionToken, payload.options || payload);
+    case 'GET_INVENTORY_REPORT':
+      return apiGetInventoryAuditReport(sessionToken);
+    case 'EXPORT_REPORT_CSV':
+      return exportReportCsv(sessionToken, payload.reportType, payload.options || {});
+    case 'GET_STAFF':
+      return apiGetStaffList(sessionToken);
+    case 'SAVE_STAFF':
+      return apiSaveStaffUser(sessionToken, payload);
+    case 'GET_SETTINGS':
+      return apiGetSettings(sessionToken);
+    case 'SAVE_SETTINGS':
+      return apiSaveSettings(sessionToken, payload);
+    case 'TEST_SPX':
+      return apiTestSpxConnection(sessionToken);
+    case 'PROCESS_QUEUE':
+      return apiProcessJobQueueNow(sessionToken);
+    case 'RUN_TESTS':
+      return apiRunSystemTests(sessionToken);
+        case 'DELETE_PRODUCT':
+      return apiCall(function() { return deleteProduct(sessionToken, payload.productId); });
+    case 'DELETE_VARIANT':
+      return apiCall(function() { return deleteVariant(sessionToken, payload.sku); });
+    case 'SAVE_CUSTOMER':
+      return apiCall(function() { return saveCustomer(sessionToken, payload.customer || payload); });
+    case 'DELETE_CUSTOMER':
+      return apiCall(function() { return deleteCustomer(sessionToken, payload.customerId); });
+    case 'DELETE_STAFF':
+      return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
+    case 'RESET_TEST_DATA':
+    case 'apiResetAllTestData':
+      return apiResetAllTestData(sessionToken);
+    default:
+      return { success: false, error: 'Hành động không hợp lệ: ' + action };
+  }
+}
+
+/**
+ * Hàm bao bọc an toàn (Safe Wrapper) xử lý lỗi thống nhất
+ */
+function apiCall(fn) {
+  try {
+    var data = fn();
+    return { success: true, data: data };
+  } catch (err) {
+    var msg = err.message || 'Lỗi hệ thống không xác định.';
+    Logger.log('API Error: ' + msg);
+    return { success: false, error: msg };
+  }
+}
+
+/**
+ * Lấy trạng thái khởi động: Kiểm tra phiên đăng nhập và cấu hình cơ bản
+ */
+function apiGetInitialState(sessionToken) {
+  return apiCall(function() {
+    var user = null;
+    try {
+      user = authenticateSession(sessionToken);
+    } catch (e) {
+      // Chưa đăng nhập hoặc token hết hạn
+    }
+    
+    var shopName = getSystemSetting('SHOP_NAME', 'Bảo Tín Shoes');
+    var spxMode = getSystemSetting('SPX_MODE', 'MOCK');
+    
+    return {
+      isAuthenticated: !!user,
+      user: user,
+      shopInfo: {
+        name: shopName,
+        hotline: getSystemSetting('SHOP_HOTLINE', '0988.888.888'),
+        spxMode: spxMode
+      },
+      roles: CONFIG.ROLES
+    };
   });
-  return logs.slice(0, max);
+}
+
+/**
+ * Đăng nhập người dùng bằng định danh (Email/SĐT) và Mã PIN
+ */
+function apiLogin(identifier, pin) {
+  return apiCall(function() {
+    return loginWithCredentials(identifier, pin);
+  });
+}
+
+/**
+ * Đăng xuất hủy phiên
+ */
+function apiLogout(sessionToken) {
+  return apiCall(function() {
+    return logoutSession(sessionToken);
+  });
+}
+
+/**
+ * Lấy tổng hợp chỉ số Dashboard (Tổng quan)
+ */
+function apiGetDashboardSummary(sessionToken) {
+  return apiCall(function() {
+    var user = requireAuth(sessionToken);
+    var orders = readTableData(CONFIG.SHEETS.ORDERS);
+    var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+    var stockList = readTableData(CONFIG.SHEETS.STOCK);
+    
+    var todayStr = getTodayDateString();
+    var stats = {
+      todayOrders: 0,
+      todayRevenue: 0,
+      pendingPackOrders: 0,
+      deliveringOrders: 0,
+      deliveredToday: 0,
+      returningOrders: 0,
+      lowStockAlertCount: 0
+    };
+    
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      if (user.role === CONFIG.ROLES.SALE && o.saleId !== user.userId) continue;
+      
+      var isToday = (o.createdAt || '').substring(0, 10) === todayStr;
+      if (isToday && o.status === CONFIG.ORDER_STATUS.CONFIRMED) {
+        stats.todayOrders++;
+        stats.todayRevenue += (Number(o.netRevenue) || 0);
+      }
+      
+      if (o.status === CONFIG.ORDER_STATUS.CONFIRMED && o.shippingStatus === CONFIG.SHIPPING_STATUS.UNSHIPPED) {
+        stats.pendingPackOrders++;
+      }
+      if (o.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERING || o.shippingStatus === CONFIG.SHIPPING_STATUS.DISPATCHED) {
+        stats.deliveringOrders++;
+      }
+      if (o.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNING) {
+        stats.returningOrders++;
+      }
+    }
+    
+    // Đếm SKU cảnh báo sắp hết hàng (< 3 đôi)
+    for (var j = 0; j < stockList.length; j++) {
+      var st = stockList[j];
+      if ((Number(st.stockAvailable) || 0) < 3) {
+        stats.lowStockAlertCount++;
+      }
+    }
+    
+    return stats;
+  });
+}
+
+// -------------------------------------------------------------
+// SẢN PHẨM & TỒN KHO API
+// -------------------------------------------------------------
+function apiGetProductsCatalog(sessionToken) {
+  return apiCall(function() {
+    return getProductsCatalog(sessionToken);
+  });
+}
+
+function apiSaveProduct(sessionToken, productData) {
+  return apiCall(function() {
+    return saveProduct(sessionToken, productData);
+  });
+}
+
+function apiBatchCreateVariants(sessionToken, modelCode, colors, sizes, defaultPrice, refWeightG) {
+  return apiCall(function() {
+    return batchCreateVariants(sessionToken, modelCode, colors, sizes, defaultPrice, refWeightG);
+  });
+}
+
+function apiGetInventoryMatrix(sessionToken) {
+  return apiCall(function() {
+    return getInventoryMatrix(sessionToken);
+  });
+}
+
+function apiGetSkuMovementHistory(sessionToken, sku) {
+  return apiCall(function() {
+    return getSkuMovementHistory(sessionToken, sku);
+  });
+}
+
+function apiAdjustStock(sessionToken, sku, adjustQty, reason, isIncrease) {
+  return apiCall(function() {
+    return adjustStock(sessionToken, sku, adjustQty, reason, isIncrease);
+  });
+}
+
+// -------------------------------------------------------------
+// ĐƠN HÀNG API
+// -------------------------------------------------------------
+function apiSaveOrder(sessionToken, payload, isConfirmNow) {
+  return apiCall(function() {
+    return saveOrder(sessionToken, payload, isConfirmNow);
+  });
+}
+
+function apiConfirmDraftOrder(sessionToken, orderId) {
+  return apiCall(function() {
+    return confirmDraftOrder(sessionToken, orderId);
+  });
+}
+
+function apiCancelOrder(sessionToken, orderId, reason) {
+  return apiCall(function() {
+    return cancelOrder(sessionToken, orderId, reason);
+  });
+}
+
+function apiCreateExchangeOrder(sessionToken, originalOrderId, oldSku, newSku, feeDiff, notes) {
+  return apiCall(function() {
+    return createExchangeOrder(sessionToken, originalOrderId, oldSku, newSku, feeDiff, notes);
+  });
+}
+
+function apiGetOrdersList(sessionToken, queryOptions) {
+  return apiCall(function() {
+    return getOrdersList(sessionToken, queryOptions);
+  });
+}
+
+function apiGetOrderDetail(sessionToken, orderId) {
+  return apiCall(function() {
+    return getOrderDetail(sessionToken, orderId);
+  });
+}
+
+function apiGetCustomersList(sessionToken, query) {
+  return apiCall(function() {
+    return getCustomersList(sessionToken, query);
+  });
+}
+
+// -------------------------------------------------------------
+// VẬN ĐƠN SPX & THỦ KHO API
+// -------------------------------------------------------------
+function apiRequestShipment(sessionToken, orderId, weightG, notes) {
+  return apiCall(function() {
+    var res = requestShipmentCreation(sessionToken, orderId, weightG, notes);
+    try {
+      executeCreateShipmentJob({ orderId: orderId, weightG: weightG || 800, notes: notes });
+    } catch (e) {
+      Logger.log('executeCreateShipmentJob notice: ' + e.message);
+    }
+    return res;
+  });
+}
+
+function apiHandOverToSpx(sessionToken, orderId) {
+  return apiCall(function() {
+    return handOverToSpx(sessionToken, orderId);
+  });
+}
+
+function apiGetAirwayBillHtml(sessionToken, orderId) {
+  return apiCall(function() {
+    requireAuth(sessionToken);
+    return renderSpxAirwayBillHtml(orderId);
+  });
+}
+
+function apiGetBatchAirwayBillHtml(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireAuth(sessionToken);
+    return renderBatchSpxAirwayBillHtml(orderIds);
+  });
+}
+
+function apiBatchCreateShipments(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        requestShipmentCreation(sessionToken, list[i], 800, 'Đẩy đơn hàng loạt sang SPX');
+        try {
+          executeCreateShipmentJob({ orderId: list[i], weightG: 800, notes: 'Đẩy đơn hàng loạt sang SPX' });
+        } catch (execErr) {
+          Logger.log('executeCreateShipmentJob notice for ' + list[i] + ': ' + execErr.message);
+        }
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiLinkSpxTracking(sessionToken, orderId, trackingNumber, notes) {
+  return apiCall(function() {
+    return linkRealSpxTracking(sessionToken, orderId, trackingNumber, notes);
+  });
+}
+
+function apiBatchHandOverToSpx(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        handOverToSpx(sessionToken, list[i]);
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiGetQueueSummary(sessionToken) {
+  return apiCall(function() {
+    return getQueueSummary(sessionToken);
+  });
+}
+
+function apiProcessJobQueueNow(sessionToken) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    return processJobQueue(10);
+  });
+}
+
+// -------------------------------------------------------------
+// HÀNG HOÀN & ĐỔI SIZE API
+// -------------------------------------------------------------
+function apiGetReturnsList(sessionToken) {
+  return apiCall(function() {
+    return getReturnsList(sessionToken);
+  });
+}
+
+function apiProcessReturnInspection(sessionToken, returnId, isPassed, notes) {
+  return apiCall(function() {
+    return processReturnInspection(sessionToken, returnId, isPassed, notes);
+  });
+}
+
+// -------------------------------------------------------------
+// ĐỐI SOÁT COD API
+// -------------------------------------------------------------
+function apiPreviewReconciliationCsv(sessionToken, csvText) {
+  return apiCall(function() {
+    return previewReconciliationCsv(sessionToken, csvText);
+  });
+}
+
+function apiConfirmReconciliationBatch(sessionToken, verifiedRows, batchNote) {
+  return apiCall(function() {
+    return confirmReconciliationBatch(sessionToken, verifiedRows, batchNote);
+  });
+}
+
+function apiGetReconciliationHistory(sessionToken) {
+  return apiCall(function() {
+    return getReconciliationHistory(sessionToken);
+  });
+}
+
+function apiGetPendingCodOrders(sessionToken) {
+  return apiCall(function() {
+    return getPendingCodOrders(sessionToken);
+  });
+}
+
+// -------------------------------------------------------------
+// BÁO CÁO API
+// -------------------------------------------------------------
+function apiGetSalesReport(sessionToken, options) {
+  return apiCall(function() {
+    return getSalesReport(sessionToken, options);
+  });
+}
+
+function apiGetInventoryAuditReport(sessionToken) {
+  return apiCall(function() {
+    return getInventoryAuditReport(sessionToken);
+  });
+}
+
+function apiExportReportCsv(sessionToken, reportType, options) {
+  return apiCall(function() {
+    return exportReportCsv(sessionToken, reportType, options);
+  });
+}
+
+// -------------------------------------------------------------
+// CẤU HÌNH & NHÂN VIÊN API (ADMIN)
+// -------------------------------------------------------------
+function apiGetStaffList(sessionToken) {
+  return apiCall(function() {
+    return getStaffList(sessionToken);
+  });
+}
+
+function apiSaveStaffUser(sessionToken, staffData) {
+  return apiCall(function() {
+    return saveStaffUser(sessionToken, staffData);
+  });
+}
+
+function apiGetSettings(sessionToken) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
+    var raw = readTableData(CONFIG.SHEETS.SETTINGS);
+    var map = {
+      SPX_MODE: CONFIG.SPX.MODE,
+      SPX_BASE_URL: CONFIG.SPX.BASE_URL,
+      SPX_APP_ID: CONFIG.SPX.APP_ID,
+      SPX_MERCHANT_ID: CONFIG.SPX.MERCHANT_ID,
+      SENDER_NAME: CONFIG.DEFAULT_SHIPPING.SENDER_NAME,
+      SENDER_PHONE: CONFIG.DEFAULT_SHIPPING.SENDER_PHONE,
+      SENDER_ADDRESS: CONFIG.DEFAULT_SHIPPING.SENDER_ADDRESS
+    };
+    for (var i = 0; i < raw.length; i++) {
+      var val = raw[i].value;
+      if (raw[i].key === 'SPX_APP_SECRET' && val) {
+        val = '********';
+      }
+      map[raw[i].key] = val;
+    }
+    return map;
+  });
+}
+
+function apiSaveSettings(sessionToken, settingsObj) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
+    var keys = Object.keys(settingsObj);
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i];
+      var v = settingsObj[k];
+      if (k === 'SPX_APP_SECRET' && v === '********') continue; // Không ghi đè nếu là chuỗi che
+      updateSystemSetting(k, v);
+    }
+    return { success: true };
+  });
+}
+
+function apiTestSpxConnection(sessionToken) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
+    var provider = getSpxProvider();
+    return provider.testConnection();
+  });
+}
+
+function apiRunSystemTests(sessionToken) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
+    return runAllAcceptanceTests();
+  });
+}
+
+function apiResetAllTestData(sessionToken) {
+  return apiCall(function() {
+    return resetAllOrderTestData(sessionToken);
+  });
 }
 
 
-// =============================================================
+// -------------------------------------------------------------
 // MODULE: Tests.gs
-// =============================================================
+// -------------------------------------------------------------
 /**
  * Tests.gs - Bộ kiểm thử tự động 15 tiêu chí nghiệm thu nghiệp vụ quan trọng
  * Có thể chạy từ Apps Script Editor hoặc từ nút "Chạy kiểm thử" trong màn hình Cài đặt Admin.
@@ -5372,605 +5985,6 @@ function runAllAcceptanceTests() {
     failed: results.length - passedCount,
     details: results
   };
-}
-
-
-// =============================================================
-// MODULE: ServerApi.gs
-// =============================================================
-/**
- * ServerApi.gs - Cổng giao tiếp Frontend-Backend (google.script.run)
- * Chuẩn hóa phản hồi: { success: true, data: ... } hoặc { success: false, error: '...' }
- * Tuyệt đối không tin cậy vai trò từ client; xác thực người dùng tại mọi điểm vào.
- */
-
-/**
- * Phục vụ Giao diện Web App hoặc Cổng REST API (hỗ trợ GitHub Pages)
- */
-function doGet(e) {
-  try {
-    setupDatabase();
-  } catch (err) {
-    Logger.log('doGet auto-setup notice: ' + err.message);
-  }
-  
-  // Nếu có tham số ?action=... thì xử lý dưới dạng REST API JSON (phục vụ GitHub Pages)
-  if (e && e.parameter && e.parameter.action) {
-    var action = e.parameter.action;
-    var sessionToken = e.parameter.sessionToken || '';
-    var payload = {};
-    if (e.parameter.data) {
-      try { payload = JSON.parse(e.parameter.data); } catch (ex) { payload = {}; }
-    }
-    var res = dispatchApiAction(action, payload, sessionToken);
-    return ContentService.createTextOutput(JSON.stringify(res))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  // Nếu truy cập trực tiếp URL Web App: phục vụ HTML Service
-  try {
-    var template = HtmlService.createTemplateFromFile('Index');
-    template.appName = CONFIG.APP_NAME;
-    template.shopName = getSystemSetting('SHOP_NAME', 'Bảo Tín Shoes');
-    
-    return template.evaluate()
-      .setTitle(CONFIG.APP_NAME + ' - ' + CONFIG.APP_SUBTITLE)
-      .addMetaTag('viewport', 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no')
-      .setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
-  } catch (htmErr) {
-    // Nếu chưa tạo file Index trong Apps Script: trả về JSON báo trạng thái API
-    return ContentService.createTextOutput(JSON.stringify({
-      success: true,
-      status: 'ONLINE',
-      app: CONFIG.APP_NAME,
-      message: 'SPX Shoe Hub REST API đang hoạt động kết nối Google Sheets & GitHub Pages.',
-      time: getNowIsoString()
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-/**
- * Xử lý các yêu cầu POST từ GitHub Pages (RESTful API Endpoint)
- */
-function doPost(e) {
-  var requestData = {};
-  try {
-    if (e && e.postData && e.postData.contents) {
-      requestData = JSON.parse(e.postData.contents);
-    }
-  } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({
-      success: false,
-      error: 'Dữ liệu JSON gửi lên không hợp lệ: ' + err.message
-    })).setMimeType(ContentService.MimeType.JSON);
-  }
-  
-  var action = requestData.action;
-  var payload = requestData.payload || {};
-  var sessionToken = requestData.sessionToken || '';
-  
-  var response = dispatchApiAction(action, payload, sessionToken);
-  return ContentService.createTextOutput(JSON.stringify(response))
-    .setMimeType(ContentService.MimeType.JSON);
-}
-
-/**
- * Điều phối các hành động API dùng chung cho cả doPost, doGet và google.script.run
- */
-function dispatchApiAction(action, payload, sessionToken) {
-  switch (action) {
-    case 'LOGIN':
-      return apiLogin(payload.identifier, payload.pin);
-    case 'LOGOUT':
-      return apiLogout(sessionToken);
-    case 'GET_INITIAL_STATE':
-      return apiGetInitialState(sessionToken);
-    case 'GET_DASHBOARD':
-      return apiGetDashboardSummary(sessionToken);
-    case 'GET_CATALOG':
-      return apiGetProductsCatalog(sessionToken);
-    case 'SAVE_PRODUCT':
-      return apiSaveProduct(sessionToken, payload);
-    case 'BATCH_CREATE_VARIANTS':
-      return apiBatchCreateVariants(sessionToken, payload.modelCode, payload.colors, payload.sizes, payload.defaultPrice, payload.refWeightG);
-    case 'GET_INVENTORY_MATRIX':
-      return apiGetInventoryMatrix(sessionToken);
-    case 'GET_SKU_HISTORY':
-      return apiGetSkuMovementHistory(sessionToken, payload.sku);
-    case 'ADJUST_STOCK':
-      return apiAdjustStock(sessionToken, payload.sku, payload.adjustQty, payload.reason, payload.isIncrease);
-    case 'SAVE_ORDER':
-      return apiSaveOrder(sessionToken, payload.order || payload, payload.isConfirmNow);
-    case 'CONFIRM_DRAFT':
-      return apiConfirmDraftOrder(sessionToken, payload.orderId);
-    case 'CANCEL_ORDER':
-      return apiCancelOrder(sessionToken, payload.orderId, payload.reason);
-    case 'EXCHANGE_ORDER':
-      return apiCreateExchangeOrder(sessionToken, payload.originalOrderId, payload.oldSku, payload.newSku, payload.feeDifference, payload.notes);
-    case 'GET_ORDERS':
-      return apiGetOrdersList(sessionToken, payload.queryOptions || payload);
-    case 'GET_ORDER_DETAIL':
-      return apiGetOrderDetail(sessionToken, payload.orderId);
-    case 'GET_CUSTOMERS':
-      return apiGetCustomersList(sessionToken, payload.query);
-    case 'REQUEST_SHIPMENT':
-      return apiRequestShipment(sessionToken, payload.orderId, payload.weightG, payload.notes);
-    case 'HANDOVER_SPX':
-      return apiHandOverToSpx(sessionToken, payload.orderId);
-    case 'GET_AIRWAY_BILL':
-      return apiGetAirwayBillHtml(sessionToken, payload.orderId);
-    case 'GET_BATCH_AIRWAY_BILLS':
-      return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
-    case 'BATCH_CREATE_SHIPMENTS':
-      return apiBatchCreateShipments(sessionToken, payload.orderIds);
-    case 'LINK_SPX_TRACKING':
-      return apiLinkSpxTracking(sessionToken, payload.orderId, payload.trackingNumber, payload.notes);
-    case 'BATCH_HANDOVER_SPX':
-      return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
-    case 'GET_RETURNS':
-      return apiGetReturnsList(sessionToken);
-    case 'PROCESS_RETURN_QC':
-      return apiProcessReturnInspection(sessionToken, payload.returnId, payload.isPassed, payload.notes);
-    case 'PREVIEW_RECONCILIATION':
-      return apiPreviewReconciliationCsv(sessionToken, payload.csvText);
-    case 'CONFIRM_RECONCILIATION':
-      return apiConfirmReconciliationBatch(sessionToken, payload.verifiedRows, payload.batchNote);
-    case 'GET_PENDING_COD':
-      return apiGetPendingCodOrders(sessionToken);
-    case 'GET_SALES_REPORT':
-      return apiGetSalesReport(sessionToken, payload.options || payload);
-    case 'GET_INVENTORY_REPORT':
-      return apiGetInventoryAuditReport(sessionToken);
-    case 'EXPORT_REPORT_CSV':
-      return exportReportCsv(sessionToken, payload.reportType, payload.options || {});
-    case 'GET_STAFF':
-      return apiGetStaffList(sessionToken);
-    case 'SAVE_STAFF':
-      return apiSaveStaffUser(sessionToken, payload);
-    case 'GET_SETTINGS':
-      return apiGetSettings(sessionToken);
-    case 'SAVE_SETTINGS':
-      return apiSaveSettings(sessionToken, payload);
-    case 'TEST_SPX':
-      return apiTestSpxConnection(sessionToken);
-    case 'PROCESS_QUEUE':
-      return apiProcessJobQueueNow(sessionToken);
-    case 'RUN_TESTS':
-      return apiRunSystemTests(sessionToken);
-        case 'DELETE_PRODUCT':
-      return apiCall(function() { return deleteProduct(sessionToken, payload.productId); });
-    case 'DELETE_VARIANT':
-      return apiCall(function() { return deleteVariant(sessionToken, payload.sku); });
-    case 'SAVE_CUSTOMER':
-      return apiCall(function() { return saveCustomer(sessionToken, payload.customer || payload); });
-    case 'DELETE_CUSTOMER':
-      return apiCall(function() { return deleteCustomer(sessionToken, payload.customerId); });
-    case 'DELETE_STAFF':
-      return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
-    case 'RESET_TEST_DATA':
-      return apiResetAllTestData(sessionToken);
-    default:
-      return { success: false, error: 'Hành động không hợp lệ: ' + action };
-  }
-}
-
-/**
- * Hàm bao bọc an toàn (Safe Wrapper) xử lý lỗi thống nhất
- */
-function apiCall(fn) {
-  try {
-    var data = fn();
-    return { success: true, data: data };
-  } catch (err) {
-    var msg = err.message || 'Lỗi hệ thống không xác định.';
-    Logger.log('API Error: ' + msg);
-    return { success: false, error: msg };
-  }
-}
-
-/**
- * Lấy trạng thái khởi động: Kiểm tra phiên đăng nhập và cấu hình cơ bản
- */
-function apiGetInitialState(sessionToken) {
-  return apiCall(function() {
-    var user = null;
-    try {
-      user = authenticateSession(sessionToken);
-    } catch (e) {
-      // Chưa đăng nhập hoặc token hết hạn
-    }
-    
-    var shopName = getSystemSetting('SHOP_NAME', 'Bảo Tín Shoes');
-    var spxMode = getSystemSetting('SPX_MODE', 'MOCK');
-    
-    return {
-      isAuthenticated: !!user,
-      user: user,
-      shopInfo: {
-        name: shopName,
-        hotline: getSystemSetting('SHOP_HOTLINE', '0988.888.888'),
-        spxMode: spxMode
-      },
-      roles: CONFIG.ROLES
-    };
-  });
-}
-
-/**
- * Đăng nhập người dùng bằng định danh (Email/SĐT) và Mã PIN
- */
-function apiLogin(identifier, pin) {
-  return apiCall(function() {
-    return loginWithCredentials(identifier, pin);
-  });
-}
-
-/**
- * Đăng xuất hủy phiên
- */
-function apiLogout(sessionToken) {
-  return apiCall(function() {
-    return logoutSession(sessionToken);
-  });
-}
-
-/**
- * Lấy tổng hợp chỉ số Dashboard (Tổng quan)
- */
-function apiGetDashboardSummary(sessionToken) {
-  return apiCall(function() {
-    var user = requireAuth(sessionToken);
-    var orders = readTableData(CONFIG.SHEETS.ORDERS);
-    var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
-    var stockList = readTableData(CONFIG.SHEETS.STOCK);
-    
-    var todayStr = getTodayDateString();
-    var stats = {
-      todayOrders: 0,
-      todayRevenue: 0,
-      pendingPackOrders: 0,
-      deliveringOrders: 0,
-      deliveredToday: 0,
-      returningOrders: 0,
-      lowStockAlertCount: 0
-    };
-    
-    for (var i = 0; i < orders.length; i++) {
-      var o = orders[i];
-      if (user.role === CONFIG.ROLES.SALE && o.saleId !== user.userId) continue;
-      
-      var isToday = (o.createdAt || '').substring(0, 10) === todayStr;
-      if (isToday && o.status === CONFIG.ORDER_STATUS.CONFIRMED) {
-        stats.todayOrders++;
-        stats.todayRevenue += (Number(o.netRevenue) || 0);
-      }
-      
-      if (o.status === CONFIG.ORDER_STATUS.CONFIRMED && o.shippingStatus === CONFIG.SHIPPING_STATUS.UNSHIPPED) {
-        stats.pendingPackOrders++;
-      }
-      if (o.shippingStatus === CONFIG.SHIPPING_STATUS.DELIVERING || o.shippingStatus === CONFIG.SHIPPING_STATUS.DISPATCHED) {
-        stats.deliveringOrders++;
-      }
-      if (o.shippingStatus === CONFIG.SHIPPING_STATUS.RETURNING) {
-        stats.returningOrders++;
-      }
-    }
-    
-    // Đếm SKU cảnh báo sắp hết hàng (< 3 đôi)
-    for (var j = 0; j < stockList.length; j++) {
-      var st = stockList[j];
-      if ((Number(st.stockAvailable) || 0) < 3) {
-        stats.lowStockAlertCount++;
-      }
-    }
-    
-    return stats;
-  });
-}
-
-// -------------------------------------------------------------
-// SẢN PHẨM & TỒN KHO API
-// -------------------------------------------------------------
-function apiGetProductsCatalog(sessionToken) {
-  return apiCall(function() {
-    return getProductsCatalog(sessionToken);
-  });
-}
-
-function apiSaveProduct(sessionToken, productData) {
-  return apiCall(function() {
-    return saveProduct(sessionToken, productData);
-  });
-}
-
-function apiBatchCreateVariants(sessionToken, modelCode, colors, sizes, defaultPrice, refWeightG) {
-  return apiCall(function() {
-    return batchCreateVariants(sessionToken, modelCode, colors, sizes, defaultPrice, refWeightG);
-  });
-}
-
-function apiGetInventoryMatrix(sessionToken) {
-  return apiCall(function() {
-    return getInventoryMatrix(sessionToken);
-  });
-}
-
-function apiGetSkuMovementHistory(sessionToken, sku) {
-  return apiCall(function() {
-    return getSkuMovementHistory(sessionToken, sku);
-  });
-}
-
-function apiAdjustStock(sessionToken, sku, adjustQty, reason, isIncrease) {
-  return apiCall(function() {
-    return adjustStock(sessionToken, sku, adjustQty, reason, isIncrease);
-  });
-}
-
-// -------------------------------------------------------------
-// ĐƠN HÀNG API
-// -------------------------------------------------------------
-function apiSaveOrder(sessionToken, payload, isConfirmNow) {
-  return apiCall(function() {
-    return saveOrder(sessionToken, payload, isConfirmNow);
-  });
-}
-
-function apiConfirmDraftOrder(sessionToken, orderId) {
-  return apiCall(function() {
-    return confirmDraftOrder(sessionToken, orderId);
-  });
-}
-
-function apiCancelOrder(sessionToken, orderId, reason) {
-  return apiCall(function() {
-    return cancelOrder(sessionToken, orderId, reason);
-  });
-}
-
-function apiCreateExchangeOrder(sessionToken, originalOrderId, oldSku, newSku, feeDiff, notes) {
-  return apiCall(function() {
-    return createExchangeOrder(sessionToken, originalOrderId, oldSku, newSku, feeDiff, notes);
-  });
-}
-
-function apiGetOrdersList(sessionToken, queryOptions) {
-  return apiCall(function() {
-    return getOrdersList(sessionToken, queryOptions);
-  });
-}
-
-function apiGetOrderDetail(sessionToken, orderId) {
-  return apiCall(function() {
-    return getOrderDetail(sessionToken, orderId);
-  });
-}
-
-function apiGetCustomersList(sessionToken, query) {
-  return apiCall(function() {
-    return getCustomersList(sessionToken, query);
-  });
-}
-
-// -------------------------------------------------------------
-// VẬN ĐƠN SPX & THỦ KHO API
-// -------------------------------------------------------------
-function apiRequestShipment(sessionToken, orderId, weightG, notes) {
-  return apiCall(function() {
-    return requestShipmentCreation(sessionToken, orderId, weightG, notes);
-  });
-}
-
-function apiHandOverToSpx(sessionToken, orderId) {
-  return apiCall(function() {
-    return handOverToSpx(sessionToken, orderId);
-  });
-}
-
-function apiGetAirwayBillHtml(sessionToken, orderId) {
-  return apiCall(function() {
-    requireAuth(sessionToken);
-    return renderSpxAirwayBillHtml(orderId);
-  });
-}
-
-function apiGetBatchAirwayBillHtml(sessionToken, orderIds) {
-  return apiCall(function() {
-    requireAuth(sessionToken);
-    return renderBatchSpxAirwayBillHtml(orderIds);
-  });
-}
-
-function apiBatchCreateShipments(sessionToken, orderIds) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
-    var list = orderIds || [];
-    var successCount = 0;
-    var errors = [];
-    for (var i = 0; i < list.length; i++) {
-      try {
-        requestShipmentCreation(sessionToken, list[i]);
-        successCount++;
-      } catch (e) {
-        errors.push(list[i] + ': ' + e.message);
-      }
-    }
-    return { successCount: successCount, total: list.length, errors: errors };
-  });
-}
-
-function apiLinkSpxTracking(sessionToken, orderId, trackingNumber, notes) {
-  return apiCall(function() {
-    return linkRealSpxTracking(sessionToken, orderId, trackingNumber, notes);
-  });
-}
-
-function apiBatchHandOverToSpx(sessionToken, orderIds) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
-    var list = orderIds || [];
-    var successCount = 0;
-    var errors = [];
-    for (var i = 0; i < list.length; i++) {
-      try {
-        handOverToSpx(sessionToken, list[i]);
-        successCount++;
-      } catch (e) {
-        errors.push(list[i] + ': ' + e.message);
-      }
-    }
-    return { successCount: successCount, total: list.length, errors: errors };
-  });
-}
-
-function apiGetQueueSummary(sessionToken) {
-  return apiCall(function() {
-    return getQueueSummary(sessionToken);
-  });
-}
-
-function apiProcessJobQueueNow(sessionToken) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
-    return processJobQueue(10);
-  });
-}
-
-// -------------------------------------------------------------
-// HÀNG HOÀN & ĐỔI SIZE API
-// -------------------------------------------------------------
-function apiGetReturnsList(sessionToken) {
-  return apiCall(function() {
-    return getReturnsList(sessionToken);
-  });
-}
-
-function apiProcessReturnInspection(sessionToken, returnId, isPassed, notes) {
-  return apiCall(function() {
-    return processReturnInspection(sessionToken, returnId, isPassed, notes);
-  });
-}
-
-// -------------------------------------------------------------
-// ĐỐI SOÁT COD API
-// -------------------------------------------------------------
-function apiPreviewReconciliationCsv(sessionToken, csvText) {
-  return apiCall(function() {
-    return previewReconciliationCsv(sessionToken, csvText);
-  });
-}
-
-function apiConfirmReconciliationBatch(sessionToken, verifiedRows, batchNote) {
-  return apiCall(function() {
-    return confirmReconciliationBatch(sessionToken, verifiedRows, batchNote);
-  });
-}
-
-function apiGetReconciliationHistory(sessionToken) {
-  return apiCall(function() {
-    return getReconciliationHistory(sessionToken);
-  });
-}
-
-function apiGetPendingCodOrders(sessionToken) {
-  return apiCall(function() {
-    return getPendingCodOrders(sessionToken);
-  });
-}
-
-// -------------------------------------------------------------
-// BÁO CÁO API
-// -------------------------------------------------------------
-function apiGetSalesReport(sessionToken, options) {
-  return apiCall(function() {
-    return getSalesReport(sessionToken, options);
-  });
-}
-
-function apiGetInventoryAuditReport(sessionToken) {
-  return apiCall(function() {
-    return getInventoryAuditReport(sessionToken);
-  });
-}
-
-function apiExportReportCsv(sessionToken, reportType, options) {
-  return apiCall(function() {
-    return exportReportCsv(sessionToken, reportType, options);
-  });
-}
-
-// -------------------------------------------------------------
-// CẤU HÌNH & NHÂN VIÊN API (ADMIN)
-// -------------------------------------------------------------
-function apiGetStaffList(sessionToken) {
-  return apiCall(function() {
-    return getStaffList(sessionToken);
-  });
-}
-
-function apiSaveStaffUser(sessionToken, staffData) {
-  return apiCall(function() {
-    return saveStaffUser(sessionToken, staffData);
-  });
-}
-
-function apiGetSettings(sessionToken) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
-    var raw = readTableData(CONFIG.SHEETS.SETTINGS);
-    var map = {
-      SPX_MODE: CONFIG.SPX.MODE,
-      SPX_BASE_URL: CONFIG.SPX.BASE_URL,
-      SPX_APP_ID: CONFIG.SPX.APP_ID,
-      SPX_MERCHANT_ID: CONFIG.SPX.MERCHANT_ID,
-      SENDER_NAME: CONFIG.DEFAULT_SHIPPING.SENDER_NAME,
-      SENDER_PHONE: CONFIG.DEFAULT_SHIPPING.SENDER_PHONE,
-      SENDER_ADDRESS: CONFIG.DEFAULT_SHIPPING.SENDER_ADDRESS
-    };
-    for (var i = 0; i < raw.length; i++) {
-      var val = raw[i].value;
-      if (raw[i].key === 'SPX_APP_SECRET' && val) {
-        val = '********';
-      }
-      map[raw[i].key] = val;
-    }
-    return map;
-  });
-}
-
-function apiSaveSettings(sessionToken, settingsObj) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
-    var keys = Object.keys(settingsObj);
-    for (var i = 0; i < keys.length; i++) {
-      var k = keys[i];
-      var v = settingsObj[k];
-      if (k === 'SPX_APP_SECRET' && v === '********') continue; // Không ghi đè nếu là chuỗi che
-      updateSystemSetting(k, v);
-    }
-    return { success: true };
-  });
-}
-
-function apiTestSpxConnection(sessionToken) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
-    var provider = getSpxProvider();
-    return provider.testConnection();
-  });
-}
-
-function apiRunSystemTests(sessionToken) {
-  return apiCall(function() {
-    requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
-    return runAllAcceptanceTests();
-  });
-}
-
-function apiResetAllTestData(sessionToken) {
-  return apiCall(function() {
-    return resetAllOrderTestData(sessionToken);
-  });
 }
 
 
