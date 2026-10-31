@@ -901,7 +901,7 @@ function loginWithCredentials(identifier, pin) {
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var uEmail = (u.email || '').trim().toLowerCase();
-    var uPhone = (u.phone || '').trim();
+    var uPhone = String(u.phone || \"\").trim();
     if ((uEmail === inputId || uPhone === inputId) && u.status === 'ACTIVE') {
       if (u.pinHash === inputHash) {
         targetUser = u;
