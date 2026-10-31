@@ -167,6 +167,8 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiCall(function() { return deleteCustomer(sessionToken, payload.customerId); });
     case 'DELETE_STAFF':
       return apiCall(function() { return deleteStaffUser(sessionToken, payload.staffId); });
+    case 'RESET_TEST_DATA':
+      return apiResetAllTestData(sessionToken);
     default:
       return { success: false, error: 'Hành động không hợp lệ: ' + action };
   }
@@ -582,5 +584,11 @@ function apiRunSystemTests(sessionToken) {
   return apiCall(function() {
     requireRole(sessionToken, [CONFIG.ROLES.ADMIN]);
     return runAllAcceptanceTests();
+  });
+}
+
+function apiResetAllTestData(sessionToken) {
+  return apiCall(function() {
+    return resetAllOrderTestData(sessionToken);
   });
 }

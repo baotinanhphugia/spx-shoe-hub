@@ -399,13 +399,12 @@
               <label class="form-label">Ghi chú giao hàng</label>
               <textarea class="form-control" id="orderNotes" placeholder="Cho xem hàng không cho thử, gọi trước khi giao..."></textarea>
             </div>
-            <div class="form-group" style="background:#FFF9F8;border:1px dashed #FFCCBC;padding:10px 12px;border-radius:6px;margin-top:10px;">
-              <label class="form-label" style="font-weight:700;color:var(--spx-orange);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
-                <span>🔗 Mã vận đơn SPX thật (Tùy chọn)</span>
-                <span style="font-size:11px;font-weight:normal;color:#666;">Định dạng: SPXVN...</span>
-              </label>
-              <input type="text" class="form-control" id="orderSpxTrackingInput" placeholder="Ví dụ: SPXVN06725812636A (nếu đã tạo trên SPX.vn)" style="font-weight:700;color:var(--spx-orange);">
-              <small style="color:#777;display:block;margin-top:4px;">Nếu đã có mã SPX, hệ thống sẽ lưu trực tiếp và liên kết file PDF in tem chính hãng từ SPX.</small>
+            <div style="background:#F0FDF4;border:1px solid #BBF7D0;padding:12px 14px;border-radius:6px;margin-top:12px;display:flex;align-items:center;gap:10px;">
+              <span style="font-size:22px;">⚡</span>
+              <div style="font-size:12px;color:#166534;line-height:1.4;">
+                <strong>Kết nối API SPX Tự động 100%:</strong> Khi bấm <strong>Chốt đơn & Đẩy sang SPX</strong>, hệ thống tự động gọi API đẩy đơn sang SPX, tự nhận mã vận đơn <code>SPXVN...</code> và mở trực tiếp file PDF in tem chính hãng từ SPX!
+              </div>
+              <input type="hidden" id="orderSpxTrackingInput" value="">
             </div>
           </div>
 
@@ -498,7 +497,9 @@
               </div>
               <div style="display:flex;gap:12px;margin-top:14px;">
                 <button class="btn btn-secondary btn-lg" style="flex:1;" onclick="submitOrder(false)">Lưu nháp</button>
-                <button class="btn btn-primary btn-lg" style="flex:2;" onclick="submitOrder(true)">🔒 Chốt đơn (Giữ hàng)</button>
+                <button class="btn btn-primary btn-lg" style="flex:2;background:var(--spx-orange);font-weight:800;box-shadow:0 2px 8px rgba(238,77,45,0.35);" onclick="submitOrder(true)">
+                  🔒 Chốt đơn & Đẩy sang SPX (Tự động lấy mã)
+                </button>
               </div>
             </div>
           </div>
@@ -511,6 +512,7 @@
           <div class="card-title">
             <span>Quản lý Đơn hàng</span>
             <div style="display:flex;gap:8px;">
+              <button class="btn btn-danger btn-sm" onclick="handleResetAllTestData()" title="Xóa toàn bộ các đơn hàng mẫu cũ và khôi phục tồn kho sạch 100%">🗑️ Xóa toàn bộ dữ liệu đơn cũ</button>
               <button class="btn btn-secondary btn-sm" onclick="loadOrdersList()">🔄 Làm mới</button>
               <button class="btn btn-primary btn-sm" onclick="switchView('create-order')">+ Tạo đơn</button>
             </div>
@@ -519,8 +521,8 @@
           <!-- THANH TAB LỌC NHANH CHO KHÂU SOẠN & ĐÓNG GÓI -->
           <div class="quick-filter-tabs" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
             <button type="button" class="btn btn-sm btn-outline active" id="tabOrderAll" onclick="setQuickOrderFilter('ALL')" style="font-weight:700;">Tất cả đơn (<span id="countTabAll">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPack" onclick="setQuickOrderFilter('PACKING')" style="font-weight:700;color:var(--spx-orange);">📦 Chờ in tem & Đóng gói (<span id="countTabPack">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPrinted" onclick="setQuickOrderFilter('PRINTED')" style="font-weight:700;">🖨️ Đã in tem chờ gửi (<span id="countTabPrinted">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPack" onclick="setQuickOrderFilter('PACKING')" style="font-weight:700;color:var(--spx-orange);">📦 Chờ đóng gói & Đẩy SPX (<span id="countTabPack">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPrinted" onclick="setQuickOrderFilter('PRINTED')" style="font-weight:700;">🖨️ Đã có mã SPX chờ gửi (<span id="countTabPrinted">0</span>)</button>
             <button type="button" class="btn btn-sm btn-outline" id="tabOrderShipping" onclick="setQuickOrderFilter('SHIPPING')" style="font-weight:700;">🚚 Đang giao (<span id="countTabShipping">0</span>)</button>
             <button type="button" class="btn btn-sm btn-outline" id="tabOrderDone" onclick="setQuickOrderFilter('DELIVERED')" style="font-weight:700;">✅ Giao thành công (<span id="countTabDone">0</span>)</button>
           </div>
@@ -529,17 +531,14 @@
           <div id="ordersBatchBar" style="display:none;background:#FFF4F2;border:1.5px solid var(--spx-orange);border-radius:8px;padding:10px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(238,77,45,0.15);">
             <div style="display:flex;align-items:center;gap:10px;">
               <span id="selectedOrdersBadge" class="badge" style="background:var(--spx-orange);color:#fff;font-weight:800;font-size:13px;padding:6px 12px;">Đã chọn: 0 đơn</span>
-              <span style="font-size:12px;color:#555;">Thao tác hàng loạt cho đóng gói:</span>
+              <span style="font-size:12px;color:#555;">Thao tác hàng loạt:</span>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchOpenSpxPdf()" style="background:#000;color:#fff;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="Mở trực tiếp file PDF in tem chuẩn chính hãng của SPX">
-                📄 Mở File In SPX (<span class="batch-count-val">0</span>)
+                📄 Mở File In SPX Hàng Loạt (<span class="batch-count-val">0</span>)
               </button>
-              <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchPrintAirwayBills()" style="background:var(--spx-orange);font-weight:800;box-shadow:0 2px 6px rgba(238,77,45,0.3);">
-                🖨️ In tem A6 hàng loạt (<span class="batch-count-val">0</span>)
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchCreateShipments()">
-                📦 Tạo vận đơn SPX (<span class="batch-count-val">0</span>)
+              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchCreateShipments()" style="background:var(--spx-orange);color:#fff;font-weight:700;">
+                🚀 Đẩy SPX hàng loạt (<span class="batch-count-val">0</span>)
               </button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchHandOverSpx()" id="btnBatchHandover">
                 🚚 Bàn giao SPX (<span class="batch-count-val">0</span>)
@@ -2241,7 +2240,13 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     }
 
     callServer('apiSaveOrder', [state.sessionToken, payload, isConfirm], function(res) {
-      showToast((isConfirm ? 'Đã CHỐT ĐƠN và GIỮ HÀNG: ' : 'Đã LƯU NHÁP đơn: ') + res.orderCode, 'success');
+      if (isConfirm && res.trackingNumber) {
+        showToast('Đã CHỐT ĐƠN & tạo vận đơn SPX thành công: ' + res.trackingNumber, 'success');
+        var targetSn = res.orderSn || res.trackingNumber;
+        window.open('https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn), '_blank');
+      } else {
+        showToast((isConfirm ? 'Đã CHỐT ĐƠN và GIỮ HÀNG: ' : 'Đã LƯU NHÁP đơn: ') + res.orderCode, 'success');
+      }
       // Reset form
       state.orderCart = [];
       renderOrderCart();
@@ -2633,21 +2638,24 @@ SPXVN9876543210,650000,28000,622000"></textarea>
 
         var spxColumn = '';
         if (hasRealSpx) {
-          spxColumn = '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn) + '" target="_blank" style="color:var(--spx-orange);font-weight:800;text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' + o.trackingNumber + ' 📄</a>';
+          spxColumn = '<div style="font-size:14px;font-weight:800;color:var(--spx-orange);">' +
+                        '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn) + '" target="_blank" style="color:var(--spx-orange);text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' +
+                          o.trackingNumber + ' 📄' +
+                        '</a>' +
+                      '</div>';
         } else if (o.trackingNumber) {
           spxColumn = '<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>';
+        } else if (o.status === 'CONFIRMED') {
+          spxColumn = '<button class="btn btn-primary btn-sm" onclick="handleQuickPushSpx(\'' + o.id + '\')" style="background:var(--spx-orange);font-size:11px;font-weight:700;padding:3px 10px;" title="Tự động gọi API đẩy đơn sang SPX lấy mã vận đơn">🚀 Đẩy SPX</button>';
         } else {
-          spxColumn = '<button class="btn btn-secondary btn-sm" onclick="openLinkSpxModal(\'' + o.id + '\', \'' + o.orderCode + '\')" style="color:var(--spx-orange);border-color:#FFCCBC;font-size:11px;padding:2px 8px;font-weight:700;" title="Gán mã vận đơn thật do SPX cấp">🔗 Gán mã SPX</button>';
+          spxColumn = '<span style="color:#94A3B8;font-size:12px;">Chờ chốt đơn</span>';
         }
 
         var actionBtns = '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ';
         if (hasRealSpx) {
-          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + targetSn + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 File SPX</button> ';
-        } else if (isPackable) {
-          actionBtns += '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')" title="In tem dán thùng A6">🖨️ In A6</button> ';
-        }
-        if (!hasRealSpx && o.status === 'CONFIRMED') {
-          actionBtns += '<button class="btn btn-secondary btn-sm" onclick="openLinkSpxModal(\'' + o.id + '\', \'' + o.orderCode + '\')" title="Gán mã vận đơn SPX">🔗 Gán SPX</button> ';
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + targetSn + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 In Tem SPX</button> ';
+        } else if (o.status === 'CONFIRMED') {
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="handleQuickPushSpx(\'' + o.id + '\')" style="background:var(--spx-orange);font-weight:700;" title="Tự động gọi API đẩy đơn sang SPX">🚀 Đẩy SPX</button> ';
         }
         if (o.status === 'CONFIRMED' && o.shippingStatus === 'UNSHIPPED') {
           actionBtns += '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')">Hủy</button>';
@@ -2806,6 +2814,29 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     }
     var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(trackingNumber);
     window.open(spxUrl, '_blank');
+  }
+
+  // --- ĐẨY NHANH ĐƠN LẺ SANG SPX QUA API ---
+  function handleQuickPushSpx(orderId) {
+    showToast('Đang kết nối API tạo vận đơn SPX...', 'info');
+    callServer('apiRequestShipment', [state.sessionToken, orderId, 800, 'Tạo từ danh sách đơn'], function(res) {
+      showToast('Đã đẩy đơn sang SPX thành công!', 'success');
+      loadOrdersList();
+    });
+  }
+
+  // --- XÓA SẠCH DỮ LIỆU ĐƠN MẪU CŨ VÀ RESET KHO ---
+  function handleResetAllTestData() {
+    var c = confirm('⚠️ BẠN CÓ CHẮC CHẮN MUỐN XÓA TOÀN BỘ ĐƠN HÀNG CŨ KHÔNG?\n\n- Toàn bộ các đơn hàng mẫu thử nghiệm, mã vận đơn giả lập cũ sẽ bị xóa sạch khỏi Google Sheets.\n- Toàn bộ Tồn kho giày sẽ được khôi phục về trạng thái sạch ban đầu.\n- Thao tác này giúp hệ thống sẵn sàng 100% cho đơn hàng thật mới.');
+    if (!c) return;
+    showToast('Đang xóa sạch dữ liệu đơn hàng cũ...', 'info');
+    callServer('apiResetAllTestData', [state.sessionToken], function(res) {
+      showToast(res.message || 'Đã xóa sạch dữ liệu đơn mẫu cũ thành công!', 'success');
+      loadOrdersList();
+      loadDashboard();
+      if (typeof loadReturnsList === 'function') loadReturnsList();
+      if (typeof loadInventoryMatrix === 'function') loadInventoryMatrix();
+    });
   }
 
   // --- MODAL GÁN MÃ VẬN ĐƠN SPX THẬT ---

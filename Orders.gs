@@ -225,6 +225,24 @@ function saveOrder(token, payload, isConfirmNow) {
   
   if (isConfirmNow) {
     upsertCustomerFromOrder(orderRecord);
+    
+    // Tự động đẩy đơn sang SPX qua API ngay khi chốt đơn (Không cần nhập tay)
+    try {
+      requestShipmentCreation(token, orderId, 800, payload.notes);
+      executeCreateShipmentJob(orderId, { weightG: 800, notes: payload.notes });
+      
+      var allShp = readTableData(CONFIG.SHEETS.SHIPMENTS);
+      for (var s = allShp.length - 1; s >= 0; s--) {
+        if (allShp[s].orderId === orderId && allShp[s].trackingNumber) {
+          orderRecord.shippingStatus = CONFIG.SHIPPING_STATUS.LABEL_PRINTED;
+          orderRecord.trackingNumber = allShp[s].trackingNumber;
+          orderRecord.orderSn = allShp[s].orderSn || allShp[s].trackingNumber;
+          break;
+        }
+      }
+    } catch (spxAutoErr) {
+      Logger.log('Tự động tạo vận đơn SPX khi chốt đơn: ' + spxAutoErr.message);
+    }
   }
   
   logAuditAction(isConfirmNow ? 'CONFIRM_ORDER' : 'CREATE_DRAFT', 'Orders', orderId, 'Đơn ' + orderCode + ' - COD: ' + calc.codAmount + ' đ', user.fullName);
@@ -233,6 +251,9 @@ function saveOrder(token, payload, isConfirmNow) {
     success: true,
     orderId: orderId,
     orderCode: orderCode,
+    trackingNumber: orderRecord.trackingNumber || '',
+    orderSn: orderRecord.orderSn || '',
+    shippingStatus: orderRecord.shippingStatus,
     status: targetStatus,
     codAmount: calc.codAmount,
     spxAddressCode: spxCode

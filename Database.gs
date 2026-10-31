@@ -311,6 +311,51 @@ function deleteRowsByKey(sheetName, keyField, keyValue) {
 }
 
 /**
+ * Xóa toàn bộ dữ liệu trong bảng (giữ lại dòng tiêu đề 1)
+ */
+function clearTableData(sheetName) {
+  var ss = getSpreadsheet();
+  var sheet = ss.getSheetByName(sheetName);
+  if (!sheet) return;
+  var lastRow = sheet.getLastRow();
+  var lastCol = sheet.getLastColumn();
+  if (lastRow > 1 && lastCol > 0) {
+    sheet.getRange(2, 1, lastRow - 1, lastCol).clearContent();
+  }
+}
+
+/**
+ * XÓA TOÀN BỘ DỮ LIỆU ĐƠN HÀNG CŨ VÀ ĐƯA KHO VỀ TRẠNG THÁI SẠCH
+ */
+function resetAllOrderTestData(token) {
+  requireRole(token, [CONFIG.ROLES.ADMIN]);
+  return withScriptLock(function() {
+    clearTableData(CONFIG.SHEETS.ORDERS);
+    clearTableData(CONFIG.SHEETS.ORDER_ITEMS);
+    clearTableData(CONFIG.SHEETS.SHIPMENTS);
+    clearTableData(CONFIG.SHEETS.RETURNS);
+    clearTableData(CONFIG.SHEETS.PAYMENTS);
+    clearTableData(CONFIG.SHEETS.RECONCILIATIONS);
+    clearTableData(CONFIG.SHEETS.JOBS);
+    clearTableData(CONFIG.SHEETS.STOCK_MOVEMENTS);
+    
+    // Hồi phục lại toàn bộ Tồn kho khả dụng (đưa hàng giữ, đang giao, đang hoàn về 0)
+    var stocks = readTableData(CONFIG.SHEETS.STOCK);
+    for (var s = 0; s < stocks.length; s++) {
+      stocks[s].stockReserved = 0;
+      stocks[s].stockShipping = 0;
+      stocks[s].stockReturning = 0;
+      stocks[s].stockAvailable = Number(stocks[s].stockSalable) || Number(stocks[s].stockActual) || 0;
+      stocks[s].updatedAt = getNowIsoString();
+    }
+    batchSaveStockUpdates(stocks);
+    
+    logAuditAction('RESET_ALL_TEST_DATA', 'Database', 'ALL', 'Đã xóa toàn bộ đơn mẫu cũ và đưa kho về trạng thái sạch ban đầu', 'Admin');
+    return { success: true, message: 'Đã xóa sạch toàn bộ đơn mẫu cũ và đưa kho về trạng thái sạch 100%!' };
+  }, 30000);
+}
+
+/**
  * Khởi tạo cấu trúc các Sheet, định dạng tiêu đề và dữ liệu mẫu nếu chưa có
  * Hoạt động IDEMPOTENT - Không xóa dữ liệu nếu đã có sẵn.
  */
