@@ -4,9 +4,9 @@
  * Tích hợp sẵn RESTful API phục vụ Frontend chạy trên GitHub Pages và CSDL Google Sheets.
  * Hỗ trợ toàn diện Thêm - Sửa - Xóa cho Sản phẩm, Biến thể SKU, Khách hàng và Nhân sự.
  * Tích hợp In tem vận đơn SPX hàng loạt (Batch Airway Bill Print A6/A7 Code128 SVG) và Smart Address Parser.
+ * Hỗ trợ Quy trình thật 100%: Gán mã SPX thật (SPXVN...) và Mở trực tiếp File In PDF chuẩn từ SPX.vn.
  * 17/17 Tiêu chí kiểm thử nghiệp vụ nghiệm thu ĐẠT 100%.
  */
-
 
 
 // =============================================================
@@ -203,7 +203,6 @@ function generateMockTrackingNumber() {
   var rand = Math.floor(1000000000 + Math.random() * 9000000000);
   return 'SPXVN' + rand;
 }
-
 
 // =============================================================
 // MODULE: Database.gs
@@ -846,7 +845,6 @@ function backupDatabase() {
   };
 }
 
-
 // =============================================================
 // MODULE: Auth.gs
 // =============================================================
@@ -1139,7 +1137,6 @@ function deleteStaffUser(token, staffId) {
   return { success: true, message: 'Đã xóa nhân sự thành công.' };
 }
 
-
 // =============================================================
 // MODULE: Products.gs
 // =============================================================
@@ -1414,7 +1411,6 @@ function deleteVariant(token, sku) {
   logAuditAction('DELETE_VARIANT', 'Variants', cleanSku, 'Xóa biến thể SKU: ' + cleanSku, user.fullName);
   return { success: true, message: 'Đã xóa biến thể SKU ' + cleanSku + ' thành công.' };
 }
-
 
 // =============================================================
 // MODULE: Inventory.gs
@@ -1865,7 +1861,6 @@ function getSkuMovementHistory(token, sku) {
   return filtered;
 }
 
-
 // =============================================================
 // MODULE: Orders.gs
 // =============================================================
@@ -2064,6 +2059,35 @@ function saveOrder(token, payload, isConfirmNow) {
   // 5. Lưu vào Google Sheets
   insertRow(CONFIG.SHEETS.ORDERS, orderRecord);
   insertRowsBatch(CONFIG.SHEETS.ORDER_ITEMS, orderItemRecords);
+  
+  // 5b. Nếu người dùng nhập trực tiếp Mã vận đơn SPX thật khi tạo đơn
+  if (payload.trackingNumber && String(payload.trackingNumber).trim()) {
+    var rawTracking = String(payload.trackingNumber).trim();
+    var shipId = generateId('SHP');
+    var labelUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(rawTracking);
+    insertRow(CONFIG.SHEETS.SHIPMENTS, {
+      id: shipId,
+      shipmentCode: 'SHP-' + orderCode,
+      orderId: orderId,
+      trackingNumber: rawTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      weightG: 800,
+      codAmount: calc.codAmount,
+      shippingFee: 28000,
+      labelUrl: labelUrl,
+      dispatchedAt: '',
+      deliveredAt: '',
+      spxRawStatus: 'ORDER_CREATED',
+      createdAt: now,
+      updatedAt: now
+    });
+    updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', orderId, {
+      shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      updatedAt: now
+    });
+    orderRecord.shippingStatus = CONFIG.SHIPPING_STATUS.LABEL_PRINTED;
+  }
   
   if (isConfirmNow) {
     upsertCustomerFromOrder(orderRecord);
@@ -2550,6 +2574,90 @@ function deleteCustomer(token, customerId) {
   return { success: true, message: 'Đã xóa khách hàng thành công.' };
 }
 
+/**
+ * LIÊN KẾT MÃ VẬN ĐƠN SPX THẬT (QUY TRÌNH THẬT 100%)
+ * Gán trực tiếp mã vận đơn do bưu cục SPX cấp (SPXVN...) vào đơn hàng
+ * Tự động tạo link file in PDF gốc từ SPX và cập nhật trạng thái đơn sang LABEL_PRINTED
+ */
+function linkRealSpxTracking(token, orderId, trackingNumber, notes) {
+  var user = requireRole(token, [CONFIG.ROLES.SALE, CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+  var cleanTracking = String(trackingNumber || '').trim().toUpperCase();
+  if (!cleanTracking) {
+    throw new Error('Vui lòng nhập mã vận đơn SPX (Ví dụ: SPXVN06725812636A).');
+  }
+  
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var targetOrder = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id === orderId) {
+      targetOrder = orders[i];
+      break;
+    }
+  }
+  if (!targetOrder) {
+    throw new Error('Không tìm thấy đơn hàng: ' + orderId);
+  }
+  if (targetOrder.status === CONFIG.ORDER_STATUS.CANCELLED) {
+    throw new Error('Không thể gán mã vận đơn cho đơn hàng ĐÃ HỦY.');
+  }
+  
+  var now = getNowIsoString();
+  var spxPdfUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(cleanTracking);
+  
+  // Kiểm tra xem đơn hàng đã có bản ghi Shipment chưa
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var existingShipment = null;
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].orderId === orderId) {
+      existingShipment = shipments[s];
+      break;
+    }
+  }
+  
+  if (existingShipment) {
+    updateRowByKey(CONFIG.SHEETS.SHIPMENTS, 'id', existingShipment.id, {
+      trackingNumber: cleanTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      labelUrl: spxPdfUrl,
+      updatedAt: now
+    });
+  } else {
+    insertRow(CONFIG.SHEETS.SHIPMENTS, {
+      id: generateId('SHP'),
+      shipmentCode: 'SHP-' + targetOrder.orderCode,
+      orderId: orderId,
+      trackingNumber: cleanTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      weightG: 800,
+      codAmount: Number(targetOrder.codAmount) || 0,
+      shippingFee: 28000,
+      labelUrl: spxPdfUrl,
+      dispatchedAt: '',
+      deliveredAt: '',
+      spxRawStatus: 'ORDER_CREATED',
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+  
+  updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', orderId, {
+    shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+    updatedAt: now
+  });
+  
+  logAuditAction('LINK_REAL_SPX_TRACKING', 'Orders', orderId, 'Gán mã SPX thật: ' + cleanTracking, user.fullName);
+  
+  return {
+    success: true,
+    orderId: orderId,
+    orderCode: targetOrder.orderCode,
+    trackingNumber: cleanTracking,
+    labelUrl: spxPdfUrl,
+    message: 'Đã liên kết mã vận đơn SPX thật [' + cleanTracking + '] cho đơn ' + targetOrder.orderCode + ' thành công!'
+  };
+}
 
 // =============================================================
 // MODULE: SpxAdapter.gs
@@ -3020,8 +3128,9 @@ function renderSingleAirwayBillBox(orderId, index, total) {
     '</div>' +
     '<div class="barcode-area">' +
       barcodeSvg +
-      '<div class="tracking-text">' + tracking + '</div>' +
+      '<div class="tracking-text">' + tracking + (tracking.indexOf('SPXVN') === 0 ? ' <span style="background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;">CHÍNH HÃNG SPX</span>' : '') + '</div>' +
       '<div class="order-code-text">Mã đơn shop: <strong>' + order.orderCode + '</strong></div>' +
+      (tracking.indexOf('SPXVN') === 0 ? '<div style="margin-top:3px;"><a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(tracking) + '" target="_blank" style="font-size:11px;color:#EE4D2D;font-weight:700;text-decoration:underline;">[📄 Mở File In PDF Thật Từ SPX]</a></div>' : '') +
     '</div>' +
     '<div class="section sender-section">' +
       '<span class="sec-title">NGƯỜI GỬI:</span> ' + senderName + ' - ' + senderPhone + '<br>' +
@@ -3058,7 +3167,15 @@ function renderSingleAirwayBillBox(orderId, index, total) {
 /**
  * Tạo tài liệu HTML in hàng loạt (Batch Airway Bill Document)
  */
-function assembleBatchPrintDocument(cardsHtml, totalOrders) {
+function assembleBatchPrintDocument(cardsHtml, totalOrders, realSpxList) {
+  var realSpxBtn = '';
+  if (realSpxList && realSpxList.length > 0) {
+    var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + realSpxList.map(encodeURIComponent).join(',');
+    realSpxBtn = '<a href="' + spxUrl + '" target="_blank" style="background:#000;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">' +
+      '📄 MỞ FILE PDF CHUẨN TỪ SPX (' + realSpxList.length + ' ĐƠN)' +
+    '</a>';
+  }
+
   return '<!DOCTYPE html>' +
     '<html><head><meta charset="utf-8">' +
     '<title>SPX Airway Bills - In ' + totalOrders + ' Đơn Hàng Loạt</title>' +
@@ -3098,7 +3215,10 @@ function assembleBatchPrintDocument(cardsHtml, totalOrders) {
         '<strong style="font-size:16px;color:#EE4D2D;">SPX SHOE HUB - IN TEM ĐÓNG GÓI HÀNG LOẠT</strong>' +
         '<div style="font-size:12px;color:#666;">Chuẩn bị in ' + totalOrders + ' phiếu vận đơn khổ A6 (100x150mm) cho máy in nhiệt.</div>' +
       '</div>' +
-      '<button class="btn-print" onclick="window.print()">🖨️ IN TẤT CẢ ' + totalOrders + ' TEM (Ctrl+P)</button>' +
+      '<div style="display:flex;gap:10px;align-items:center;">' +
+        realSpxBtn +
+        '<button class="btn-print" onclick="window.print()">🖨️ IN NHANH TRÌNH DUYỆT (Ctrl+P)</button>' +
+      '</div>' +
     '</div>' +
     '<div class="labels-container">' +
       cardsHtml.join('') +
@@ -3114,7 +3234,10 @@ function assembleBatchPrintDocument(cardsHtml, totalOrders) {
  */
 function renderSpxAirwayBillHtml(orderId) {
   var card = renderSingleAirwayBillBox(orderId, 1, 1);
-  return assembleBatchPrintDocument([card], 1);
+  var detail = getOrderDetailInternal(orderId);
+  var tr = (detail.shipment && detail.shipment.trackingNumber) ? [detail.shipment.trackingNumber] : [];
+  var realSpxList = tr.filter(function(t) { return t.indexOf('SPXVN') === 0; });
+  return assembleBatchPrintDocument([card], 1, realSpxList);
 }
 
 /**
@@ -3127,9 +3250,20 @@ function renderBatchSpxAirwayBillHtml(orderIds) {
   
   var cardsHtml = [];
   var now = getNowIsoString();
+  var realSpxList = [];
+  
+  var allShipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var shipMap = {};
+  for (var s = 0; s < allShipments.length; s++) {
+    shipMap[allShipments[s].orderId] = allShipments[s].trackingNumber;
+  }
   
   for (var i = 0; i < orderIds.length; i++) {
     var oid = orderIds[i];
+    var tr = shipMap[oid];
+    if (tr && tr.indexOf('SPXVN') === 0) {
+      realSpxList.push(tr);
+    }
     try {
       cardsHtml.push(renderSingleAirwayBillBox(oid, i + 1, orderIds.length));
       // Tự động cập nhật trạng thái đã in tem cho đơn hàng
@@ -3143,9 +3277,8 @@ function renderBatchSpxAirwayBillHtml(orderIds) {
   }
   
   logAuditAction('BATCH_PRINT_AIRWAY_BILLS', 'Orders', orderIds.join(','), 'In tem vận đơn hàng loạt cho ' + orderIds.length + ' đơn hàng', 'Thủ kho / Sale');
-  return assembleBatchPrintDocument(cardsHtml, orderIds.length);
+  return assembleBatchPrintDocument(cardsHtml, orderIds.length, realSpxList);
 }
-
 
 
 // =============================================================
@@ -3610,7 +3743,6 @@ function getQueueSummary(token) {
   };
 }
 
-
 // =============================================================
 // MODULE: Returns.gs
 // =============================================================
@@ -3700,7 +3832,6 @@ function processReturnInspection(token, returnId, isPassed, notes) {
   logAuditAction('QC_RETURN', 'Returns', returnId, (isPassed ? 'QC ĐẠT' : 'QC LỖI') + ' - SKU: ' + ret.skuOld, user.fullName);
   return { success: true, status: newStatus };
 }
-
 
 // =============================================================
 // MODULE: Reconciliation.gs
@@ -4005,7 +4136,6 @@ function parseCsvLine(line) {
   row.push(current.trim());
   return row;
 }
-
 
 // =============================================================
 // MODULE: Reports.gs
@@ -4352,7 +4482,6 @@ function sanitizeCsvValue(val) {
   return s;
 }
 
-
 // =============================================================
 // MODULE: AuditLog.gs
 // =============================================================
@@ -4407,7 +4536,6 @@ function getRecentAuditLogs(token, limit) {
   });
   return logs.slice(0, max);
 }
-
 
 // =============================================================
 // MODULE: Tests.gs
@@ -4851,7 +4979,6 @@ function runAllAcceptanceTests() {
   };
 }
 
-
 // =============================================================
 // MODULE: ServerApi.gs
 // =============================================================
@@ -4980,6 +5107,8 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
     case 'BATCH_CREATE_SHIPMENTS':
       return apiBatchCreateShipments(sessionToken, payload.orderIds);
+    case 'LINK_SPX_TRACKING':
+      return apiLinkSpxTracking(sessionToken, payload.orderId, payload.trackingNumber, payload.notes);
     case 'BATCH_HANDOVER_SPX':
       return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
     case 'GET_RETURNS':
@@ -5269,6 +5398,12 @@ function apiBatchCreateShipments(sessionToken, orderIds) {
       }
     }
     return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiLinkSpxTracking(sessionToken, orderId, trackingNumber, notes) {
+  return apiCall(function() {
+    return linkRealSpxTracking(sessionToken, orderId, trackingNumber, notes);
   });
 }
 

@@ -399,6 +399,14 @@
               <label class="form-label">Ghi chú giao hàng</label>
               <textarea class="form-control" id="orderNotes" placeholder="Cho xem hàng không cho thử, gọi trước khi giao..."></textarea>
             </div>
+            <div class="form-group" style="background:#FFF9F8;border:1px dashed #FFCCBC;padding:10px 12px;border-radius:6px;margin-top:10px;">
+              <label class="form-label" style="font-weight:700;color:var(--spx-orange);display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+                <span>🔗 Mã vận đơn SPX thật (Tùy chọn)</span>
+                <span style="font-size:11px;font-weight:normal;color:#666;">Định dạng: SPXVN...</span>
+              </label>
+              <input type="text" class="form-control" id="orderSpxTrackingInput" placeholder="Ví dụ: SPXVN06725812636A (nếu đã tạo trên SPX.vn)" style="font-weight:700;color:var(--spx-orange);">
+              <small style="color:#777;display:block;margin-top:4px;">Nếu đã có mã SPX, hệ thống sẽ lưu trực tiếp và liên kết file PDF in tem chính hãng từ SPX.</small>
+            </div>
           </div>
 
           <!-- Cột phải: Chọn sản phẩm & Tính tiền -->
@@ -524,8 +532,11 @@
               <span style="font-size:12px;color:#555;">Thao tác hàng loạt cho đóng gói:</span>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchOpenSpxPdf()" style="background:#000;color:#fff;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="Mở trực tiếp file PDF in tem chuẩn chính hãng của SPX">
+                📄 Mở File In SPX (<span class="batch-count-val">0</span>)
+              </button>
               <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchPrintAirwayBills()" style="background:var(--spx-orange);font-weight:800;box-shadow:0 2px 6px rgba(238,77,45,0.3);">
-                🖨️ In tem SPX hàng loạt (<span class="batch-count-val">0</span>)
+                🖨️ In tem A6 hàng loạt (<span class="batch-count-val">0</span>)
               </button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchCreateShipments()">
                 📦 Tạo vận đơn SPX (<span class="batch-count-val">0</span>)
@@ -1024,6 +1035,31 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         <button class="btn btn-secondary btn-sm" onclick="fillQuickLogin('sale1@shop.vn', '123456')">Sale</button>
         <button class="btn btn-secondary btn-sm" onclick="fillQuickLogin('kho@shop.vn', '123456')">Thủ Kho</button>
         <button class="btn btn-secondary btn-sm" onclick="fillQuickLogin('doisoat@shop.vn', '123456')">Đối Soát</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL: GÁN MÃ VẬN ĐƠN SPX THẬT -->
+<div class="modal-backdrop" id="linkSpxModal">
+  <div class="modal-box" style="max-width:480px;">
+    <div class="modal-header">
+      <div class="modal-title" style="color:var(--spx-orange);">🔗 Gán Mã Vận Đơn SPX Thật</div>
+      <button class="btn btn-secondary btn-sm" onclick="closeModal('linkSpxModal')">✕</button>
+    </div>
+    <div style="padding:10px 0;">
+      <input type="hidden" id="linkSpxOrderId" value="">
+      <p style="font-size:13px;color:#555;margin-bottom:12px;">
+        Đang liên kết vận đơn thật cho đơn: <strong id="linkSpxOrderCodeDisplay" style="color:#000;">...</strong>
+      </p>
+      <div class="form-group">
+        <label class="form-label" style="font-weight:700;">Nhập / Quét mã vận đơn SPX *</label>
+        <input type="text" class="form-control" id="linkSpxTrackingInput" placeholder="Ví dụ: SPXVN06725812636A" style="font-size:16px;font-weight:800;letter-spacing:1px;color:var(--spx-orange);" onkeyup="if(event.key==='Enter')submitLinkSpxTracking()">
+        <small style="color:#666;margin-top:4px;display:block;">Mã do bưu cục SPX cấp hoặc sinh từ trang quản trị SPX.vn (Bắt đầu bằng SPXVN...)</small>
+      </div>
+      <div style="display:flex;gap:10px;justify-content:flex-end;margin-top:16px;">
+        <button type="button" class="btn btn-secondary" onclick="closeModal('linkSpxModal')">Hủy</button>
+        <button type="button" class="btn btn-primary" onclick="submitLinkSpxTracking()" style="background:var(--spx-orange);font-weight:800;">Lưu & Mở File In SPX</button>
       </div>
     </div>
   </div>
@@ -2142,6 +2178,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       discount: parseInt(document.getElementById('orderDiscount').value, 10) || 0,
       customerShippingFee: parseInt(document.getElementById('orderShipFee').value, 10) || 0,
       deposit: parseInt(document.getElementById('orderDeposit').value, 10) || 0,
+      trackingNumber: (document.getElementById('orderSpxTrackingInput') ? document.getElementById('orderSpxTrackingInput').value.trim() : ''),
       items: state.orderCart
     };
 
@@ -2159,6 +2196,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       document.getElementById('orderCustPhone').value = '';
       document.getElementById('orderAddressDetail').value = '';
       document.getElementById('orderNotes').value = '';
+      if (document.getElementById('orderSpxTrackingInput')) document.getElementById('orderSpxTrackingInput').value = '';
       switchView('orders');
     });
   }
@@ -2177,8 +2215,34 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       district: '',
       ward: '',
       addressDetail: '',
-      notes: ''
+      notes: '',
+      spxTracking: '',
+      size: '',
+      quantity: 1
     };
+
+    // 0. TÌM MÃ VẬN ĐƠN SPX THẬT (SPXVN...)
+    var spxMatch = text.match(/\b(SPXVN[A-Z0-9]+)\b/i);
+    if (spxMatch) {
+      result.spxTracking = spxMatch[1].toUpperCase();
+    }
+
+    // 0b. TÌM CỠ GIÀY & SỐ LƯỢNG
+    var qtyMatch = text.match(/(\d+)\s*(?:đôi|chiếc|sp|hộp)/i);
+    if (qtyMatch) {
+      result.quantity = parseInt(qtyMatch[1], 10);
+    } else if (/(?:một|1)\s*(?:đôi|chiếc)/i.test(text)) {
+      result.quantity = 1;
+    } else if (/(?:hai|2)\s*(?:đôi|chiếc)/i.test(text)) {
+      result.quantity = 2;
+    } else if (/(?:ba|3)\s*(?:đôi|chiếc)/i.test(text)) {
+      result.quantity = 3;
+    }
+
+    var sizeMatch = text.match(/(?:size|cỡ|sz|số)\s*[:=]?\s*(3[89]|4[0-5])/i) || text.match(/\b(3[89]|4[0-5])\b/);
+    if (sizeMatch) {
+      result.size = sizeMatch[1];
+    }
 
     // 1. TÌM SỐ ĐIỆN THOẠI (10 số Việt Nam)
     var phoneRegex = /(?:\+84|84|0)[35789](?:[\s.-]?\d){8}/g;
@@ -2336,6 +2400,10 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       if (result.name) cleanForAddr = cleanForAddr.replace(result.name, '');
       if (result.phone) cleanForAddr = cleanForAddr.replace(new RegExp(result.phone + '|\\d{10,11}', 'g'), '');
       if (result.notes) cleanForAddr = cleanForAddr.replace(result.notes, '');
+      if (result.spxTracking) cleanForAddr = cleanForAddr.replace(new RegExp(result.spxTracking, 'gi'), '');
+      cleanForAddr = cleanForAddr.replace(/(?:một|hai|ba|\d+)\s*(?:đôi|chiếc|sp|hộp)/gi, ' ');
+      cleanForAddr = cleanForAddr.replace(/(?:size|cỡ|sz|số)\s*[:=]?\s*(?:3[89]|4[0-5])/gi, ' ');
+      if (result.size) cleanForAddr = cleanForAddr.replace(new RegExp('\\b' + result.size + '\\b', 'g'), ' ');
       cleanForAddr = cleanForAddr.replace(/sđt|đt|tel|phone|tên|khách|người nhận|địa chỉ|ghi chú|note/gi, ' ');
       cleanForAddr = cleanForAddr.replace(/[\n\r,]+/g, ' ').replace(/\s+/g, ' ').trim();
       if (cleanForAddr.length > 5) {
@@ -2393,9 +2461,31 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     if (parsed.notes) {
       document.getElementById('orderNotes').value = parsed.notes;
     }
+    if (parsed.spxTracking && document.getElementById('orderSpxTrackingInput')) {
+      document.getElementById('orderSpxTrackingInput').value = parsed.spxTracking;
+      filledCount++;
+    }
+    if (parsed.size) {
+      var sizeSelect = document.getElementById('selectSize');
+      if (sizeSelect) {
+        sizeSelect.value = parsed.size;
+        handleSizeSelect();
+      }
+    }
+    if (parsed.quantity) {
+      var qtyInput = document.getElementById('selectQty');
+      if (qtyInput) qtyInput.value = parsed.quantity;
+    }
+    // Tự động thêm vào giỏ hàng nếu giỏ hàng đang trống và phát hiện size
+    if (parsed.size && state.orderCart && state.orderCart.length === 0) {
+      setTimeout(function() {
+        addItemToOrderCart();
+      }, 350);
+    }
 
     if (filledCount > 0) {
-      showToast('⚡ Đã nhận diện tự động: ' + (parsed.name || 'Khách') + ' | ' + (parsed.phone || '') + ' | ' + (parsed.province || ''), 'success');
+      var toastMsg = '⚡ Đã tự nhận diện: ' + (parsed.name || 'Khách') + ' | ' + (parsed.phone || '') + (parsed.size ? ' | Cỡ: ' + parsed.size + ' (SL: ' + parsed.quantity + ' đôi)' : '') + (parsed.spxTracking ? ' | Mã SPX: ' + parsed.spxTracking : '');
+      showToast(toastMsg, 'success');
     } else {
       if (showNotice !== false) showToast('Không tìm thấy thông tin phù hợp trong đoạn văn bản.', 'error');
     }
@@ -2485,8 +2575,32 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       var html = '';
       items.forEach(function(o) {
         var isPackable = (o.status === 'CONFIRMED' && (o.shippingStatus === 'UNSHIPPED' || o.shippingStatus === 'QUEUED' || o.shippingStatus === 'LABEL_PRINTED'));
+        var hasRealSpx = o.trackingNumber && o.trackingNumber.indexOf('SPXVN') === 0;
+
+        var spxColumn = '';
+        if (hasRealSpx) {
+          spxColumn = '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(o.trackingNumber) + '" target="_blank" style="color:var(--spx-orange);font-weight:800;text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' + o.trackingNumber + ' 📄</a>';
+        } else if (o.trackingNumber) {
+          spxColumn = '<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>';
+        } else {
+          spxColumn = '<button class="btn btn-secondary btn-sm" onclick="openLinkSpxModal(\'' + o.id + '\', \'' + o.orderCode + '\')" style="color:var(--spx-orange);border-color:#FFCCBC;font-size:11px;padding:2px 8px;font-weight:700;" title="Gán mã vận đơn thật do SPX cấp">🔗 Gán mã SPX</button>';
+        }
+
+        var actionBtns = '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ';
+        if (hasRealSpx) {
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + o.trackingNumber + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 File SPX</button> ';
+        } else if (isPackable) {
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')" title="In tem dán thùng A6">🖨️ In A6</button> ';
+        }
+        if (!hasRealSpx && o.status === 'CONFIRMED') {
+          actionBtns += '<button class="btn btn-secondary btn-sm" onclick="openLinkSpxModal(\'' + o.id + '\', \'' + o.orderCode + '\')" title="Gán mã vận đơn SPX">🔗 Gán SPX</button> ';
+        }
+        if (o.status === 'CONFIRMED' && o.shippingStatus === 'UNSHIPPED') {
+          actionBtns += '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')">Hủy</button>';
+        }
+
         html += '<tr>' +
-          '<td style="text-align:center;"><input type="checkbox" class="order-select-cb" value="' + o.id + '" data-code="' + o.orderCode + '" onchange="updateSelectedOrdersState()"></td>' +
+          '<td style="text-align:center;"><input type="checkbox" class="order-select-cb" value="' + o.id + '" data-code="' + o.orderCode + '" data-tracking="' + (o.trackingNumber || '') + '" onchange="updateSelectedOrdersState()"></td>' +
           '<td><strong>' + o.orderCode + '</strong></td>' +
           '<td>' + o.customerName + '</td>' +
           '<td>' + o.customerPhone + '</td>' +
@@ -2494,12 +2608,8 @@ SPXVN9876543210,650000,28000,622000"></textarea>
           '<td><strong style="color:var(--spx-orange);">' + o.codAmount.toLocaleString('vi-VN') + ' đ</strong></td>' +
           '<td><span class="badge badge-' + o.status.toLowerCase() + '">' + o.status + '</span></td>' +
           '<td><span class="badge badge-' + o.shippingStatus.toLowerCase() + '">' + o.shippingStatus + '</span></td>' +
-          '<td>' + (o.trackingNumber ? ('<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>') : '<span style="color:#999;">-</span>') + '</td>' +
-          '<td>' +
-            '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ' +
-            (isPackable ? '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')" title="In tem dán thùng">🖨️ In</button> ' : '') +
-            (o.status === 'CONFIRMED' && o.shippingStatus === 'UNSHIPPED' ? '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')">Hủy</button>' : '') +
-          '</td>' +
+          '<td>' + spxColumn + '</td>' +
+          '<td>' + actionBtns + '</td>' +
         '</tr>';
       });
       tbody.innerHTML = html;
@@ -2605,6 +2715,73 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       showToast('Đã bàn giao SPX thành công ' + res.successCount + '/' + res.total + ' đơn hàng.', 'success');
       loadOrdersList();
       clearSelectedOrders();
+    });
+  }
+
+  // --- MỞ FILE IN PDF CHUẨN TỪ SPX HÀNG LOẠT ---
+  function handleBatchOpenSpxPdf() {
+    var selectedCbs = document.querySelectorAll('.order-select-cb:checked');
+    if (selectedCbs.length === 0) {
+      showToast('Vui lòng chọn ít nhất một đơn hàng để mở file in SPX.', 'error');
+      return;
+    }
+    
+    var spxList = [];
+    selectedCbs.forEach(function(cb) {
+      var tr = cb.getAttribute('data-tracking') || '';
+      if (tr && tr.indexOf('SPXVN') === 0) {
+        spxList.push(tr);
+      }
+    });
+    
+    if (spxList.length === 0) {
+      alert('Các đơn hàng đã chọn chưa có Mã vận đơn thật từ SPX (SPXVN...).\n\nVui lòng bấm nút "🔗 Gán SPX" trên từng đơn để liên kết mã vận đơn do bưu cục SPX cấp trước!');
+      return;
+    }
+    
+    var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + spxList.map(encodeURIComponent).join(',');
+    window.open(spxUrl, '_blank');
+    showToast('Đang mở file PDF in tem chuẩn của ' + spxList.length + ' đơn từ SPX!', 'success');
+  }
+
+  // --- MỞ FILE IN PDF CHUẨN SPX CHO ĐƠN LẺ ---
+  function openSpxPdfPrint(trackingNumber, orderId) {
+    if (!trackingNumber) {
+      showToast('Đơn hàng chưa có mã vận đơn SPX.', 'error');
+      return;
+    }
+    var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(trackingNumber);
+    window.open(spxUrl, '_blank');
+  }
+
+  // --- MODAL GÁN MÃ VẬN ĐƠN SPX THẬT ---
+  function openLinkSpxModal(orderId, orderCode) {
+    document.getElementById('linkSpxOrderId').value = orderId;
+    document.getElementById('linkSpxOrderCodeDisplay').innerText = orderCode;
+    document.getElementById('linkSpxTrackingInput').value = '';
+    openModal('linkSpxModal');
+    setTimeout(function() {
+      var input = document.getElementById('linkSpxTrackingInput');
+      if (input) input.focus();
+    }, 200);
+  }
+
+  function submitLinkSpxTracking() {
+    var orderId = document.getElementById('linkSpxOrderId').value;
+    var tracking = document.getElementById('linkSpxTrackingInput').value.trim().toUpperCase();
+    if (!tracking) {
+      showToast('Vui lòng nhập mã vận đơn SPX (Ví dụ: SPXVN06725812636A).', 'error');
+      return;
+    }
+    
+    showToast('Đang liên kết mã vận đơn SPX [' + tracking + ']...', 'info');
+    callServer('apiLinkSpxTracking', [state.sessionToken, orderId, tracking, ''], function(res) {
+      closeModal('linkSpxModal');
+      showToast('Đã liên kết mã SPX thật [' + tracking + '] thành công!', 'success');
+      loadOrdersList();
+      if (confirm('Liên kết mã ' + tracking + ' thành công!\n\nBạn có muốn mở ngay File in PDF chuẩn từ SPX để in tem không?')) {
+        window.open('https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(tracking), '_blank');
+      }
     });
   }
 

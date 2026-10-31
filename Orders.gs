@@ -194,6 +194,35 @@ function saveOrder(token, payload, isConfirmNow) {
   insertRow(CONFIG.SHEETS.ORDERS, orderRecord);
   insertRowsBatch(CONFIG.SHEETS.ORDER_ITEMS, orderItemRecords);
   
+  // 5b. Nếu người dùng nhập trực tiếp Mã vận đơn SPX thật khi tạo đơn
+  if (payload.trackingNumber && String(payload.trackingNumber).trim()) {
+    var rawTracking = String(payload.trackingNumber).trim();
+    var shipId = generateId('SHP');
+    var labelUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(rawTracking);
+    insertRow(CONFIG.SHEETS.SHIPMENTS, {
+      id: shipId,
+      shipmentCode: 'SHP-' + orderCode,
+      orderId: orderId,
+      trackingNumber: rawTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      weightG: 800,
+      codAmount: calc.codAmount,
+      shippingFee: 28000,
+      labelUrl: labelUrl,
+      dispatchedAt: '',
+      deliveredAt: '',
+      spxRawStatus: 'ORDER_CREATED',
+      createdAt: now,
+      updatedAt: now
+    });
+    updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', orderId, {
+      shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      updatedAt: now
+    });
+    orderRecord.shippingStatus = CONFIG.SHIPPING_STATUS.LABEL_PRINTED;
+  }
+  
   if (isConfirmNow) {
     upsertCustomerFromOrder(orderRecord);
   }
@@ -677,4 +706,89 @@ function deleteCustomer(token, customerId) {
   }
   logAuditAction('DELETE_CUSTOMER', 'Customers', customerId, 'Xóa khách hàng ID: ' + customerId, user.fullName);
   return { success: true, message: 'Đã xóa khách hàng thành công.' };
+}
+
+/**
+ * LIÊN KẾT MÃ VẬN ĐƠN SPX THẬT (QUY TRÌNH THẬT 100%)
+ * Gán trực tiếp mã vận đơn do bưu cục SPX cấp (SPXVN...) vào đơn hàng
+ * Tự động tạo link file in PDF gốc từ SPX và cập nhật trạng thái đơn sang LABEL_PRINTED
+ */
+function linkRealSpxTracking(token, orderId, trackingNumber, notes) {
+  var user = requireRole(token, [CONFIG.ROLES.SALE, CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+  var cleanTracking = String(trackingNumber || '').trim().toUpperCase();
+  if (!cleanTracking) {
+    throw new Error('Vui lòng nhập mã vận đơn SPX (Ví dụ: SPXVN06725812636A).');
+  }
+  
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var targetOrder = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id === orderId) {
+      targetOrder = orders[i];
+      break;
+    }
+  }
+  if (!targetOrder) {
+    throw new Error('Không tìm thấy đơn hàng: ' + orderId);
+  }
+  if (targetOrder.status === CONFIG.ORDER_STATUS.CANCELLED) {
+    throw new Error('Không thể gán mã vận đơn cho đơn hàng ĐÃ HỦY.');
+  }
+  
+  var now = getNowIsoString();
+  var spxPdfUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(cleanTracking);
+  
+  // Kiểm tra xem đơn hàng đã có bản ghi Shipment chưa
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var existingShipment = null;
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].orderId === orderId) {
+      existingShipment = shipments[s];
+      break;
+    }
+  }
+  
+  if (existingShipment) {
+    updateRowByKey(CONFIG.SHEETS.SHIPMENTS, 'id', existingShipment.id, {
+      trackingNumber: cleanTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      labelUrl: spxPdfUrl,
+      updatedAt: now
+    });
+  } else {
+    insertRow(CONFIG.SHEETS.SHIPMENTS, {
+      id: generateId('SHP'),
+      shipmentCode: 'SHP-' + targetOrder.orderCode,
+      orderId: orderId,
+      trackingNumber: cleanTracking,
+      provider: 'SPX_REAL',
+      status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+      weightG: 800,
+      codAmount: Number(targetOrder.codAmount) || 0,
+      shippingFee: 28000,
+      labelUrl: spxPdfUrl,
+      dispatchedAt: '',
+      deliveredAt: '',
+      spxRawStatus: 'ORDER_CREATED',
+      createdAt: now,
+      updatedAt: now
+    });
+  }
+  
+  updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', orderId, {
+    shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+    updatedAt: now
+  });
+  
+  logAuditAction('LINK_REAL_SPX_TRACKING', 'Orders', orderId, 'Gán mã SPX thật: ' + cleanTracking, user.fullName);
+  
+  return {
+    success: true,
+    orderId: orderId,
+    orderCode: targetOrder.orderCode,
+    trackingNumber: cleanTracking,
+    labelUrl: spxPdfUrl,
+    message: 'Đã liên kết mã vận đơn SPX thật [' + cleanTracking + '] cho đơn ' + targetOrder.orderCode + ' thành công!'
+  };
 }

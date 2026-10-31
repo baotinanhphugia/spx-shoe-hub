@@ -464,8 +464,9 @@ function renderSingleAirwayBillBox(orderId, index, total) {
     '</div>' +
     '<div class="barcode-area">' +
       barcodeSvg +
-      '<div class="tracking-text">' + tracking + '</div>' +
+      '<div class="tracking-text">' + tracking + (tracking.indexOf('SPXVN') === 0 ? ' <span style="background:#E8F5E9;color:#2E7D32;border:1px solid #A5D6A7;padding:1px 5px;border-radius:3px;font-size:10px;font-weight:700;">CHÍNH HÃNG SPX</span>' : '') + '</div>' +
       '<div class="order-code-text">Mã đơn shop: <strong>' + order.orderCode + '</strong></div>' +
+      (tracking.indexOf('SPXVN') === 0 ? '<div style="margin-top:3px;"><a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(tracking) + '" target="_blank" style="font-size:11px;color:#EE4D2D;font-weight:700;text-decoration:underline;">[📄 Mở File In PDF Thật Từ SPX]</a></div>' : '') +
     '</div>' +
     '<div class="section sender-section">' +
       '<span class="sec-title">NGƯỜI GỬI:</span> ' + senderName + ' - ' + senderPhone + '<br>' +
@@ -502,7 +503,15 @@ function renderSingleAirwayBillBox(orderId, index, total) {
 /**
  * Tạo tài liệu HTML in hàng loạt (Batch Airway Bill Document)
  */
-function assembleBatchPrintDocument(cardsHtml, totalOrders) {
+function assembleBatchPrintDocument(cardsHtml, totalOrders, realSpxList) {
+  var realSpxBtn = '';
+  if (realSpxList && realSpxList.length > 0) {
+    var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + realSpxList.map(encodeURIComponent).join(',');
+    realSpxBtn = '<a href="' + spxUrl + '" target="_blank" style="background:#000;color:#fff;text-decoration:none;padding:10px 20px;border-radius:6px;font-weight:800;font-size:14px;display:flex;align-items:center;gap:6px;box-shadow:0 2px 6px rgba(0,0,0,0.3);">' +
+      '📄 MỞ FILE PDF CHUẨN TỪ SPX (' + realSpxList.length + ' ĐƠN)' +
+    '</a>';
+  }
+
   return '<!DOCTYPE html>' +
     '<html><head><meta charset="utf-8">' +
     '<title>SPX Airway Bills - In ' + totalOrders + ' Đơn Hàng Loạt</title>' +
@@ -542,7 +551,10 @@ function assembleBatchPrintDocument(cardsHtml, totalOrders) {
         '<strong style="font-size:16px;color:#EE4D2D;">SPX SHOE HUB - IN TEM ĐÓNG GÓI HÀNG LOẠT</strong>' +
         '<div style="font-size:12px;color:#666;">Chuẩn bị in ' + totalOrders + ' phiếu vận đơn khổ A6 (100x150mm) cho máy in nhiệt.</div>' +
       '</div>' +
-      '<button class="btn-print" onclick="window.print()">🖨️ IN TẤT CẢ ' + totalOrders + ' TEM (Ctrl+P)</button>' +
+      '<div style="display:flex;gap:10px;align-items:center;">' +
+        realSpxBtn +
+        '<button class="btn-print" onclick="window.print()">🖨️ IN NHANH TRÌNH DUYỆT (Ctrl+P)</button>' +
+      '</div>' +
     '</div>' +
     '<div class="labels-container">' +
       cardsHtml.join('') +
@@ -558,7 +570,10 @@ function assembleBatchPrintDocument(cardsHtml, totalOrders) {
  */
 function renderSpxAirwayBillHtml(orderId) {
   var card = renderSingleAirwayBillBox(orderId, 1, 1);
-  return assembleBatchPrintDocument([card], 1);
+  var detail = getOrderDetailInternal(orderId);
+  var tr = (detail.shipment && detail.shipment.trackingNumber) ? [detail.shipment.trackingNumber] : [];
+  var realSpxList = tr.filter(function(t) { return t.indexOf('SPXVN') === 0; });
+  return assembleBatchPrintDocument([card], 1, realSpxList);
 }
 
 /**
@@ -571,9 +586,20 @@ function renderBatchSpxAirwayBillHtml(orderIds) {
   
   var cardsHtml = [];
   var now = getNowIsoString();
+  var realSpxList = [];
+  
+  var allShipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var shipMap = {};
+  for (var s = 0; s < allShipments.length; s++) {
+    shipMap[allShipments[s].orderId] = allShipments[s].trackingNumber;
+  }
   
   for (var i = 0; i < orderIds.length; i++) {
     var oid = orderIds[i];
+    var tr = shipMap[oid];
+    if (tr && tr.indexOf('SPXVN') === 0) {
+      realSpxList.push(tr);
+    }
     try {
       cardsHtml.push(renderSingleAirwayBillBox(oid, i + 1, orderIds.length));
       // Tự động cập nhật trạng thái đã in tem cho đơn hàng
@@ -587,6 +613,6 @@ function renderBatchSpxAirwayBillHtml(orderIds) {
   }
   
   logAuditAction('BATCH_PRINT_AIRWAY_BILLS', 'Orders', orderIds.join(','), 'In tem vận đơn hàng loạt cho ' + orderIds.length + ' đơn hàng', 'Thủ kho / Sale');
-  return assembleBatchPrintDocument(cardsHtml, orderIds.length);
+  return assembleBatchPrintDocument(cardsHtml, orderIds.length, realSpxList);
 }
 

@@ -123,6 +123,8 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
     case 'BATCH_CREATE_SHIPMENTS':
       return apiBatchCreateShipments(sessionToken, payload.orderIds);
+    case 'LINK_SPX_TRACKING':
+      return apiLinkSpxTracking(sessionToken, payload.orderId, payload.trackingNumber, payload.notes);
     case 'BATCH_HANDOVER_SPX':
       return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
     case 'GET_RETURNS':
@@ -412,6 +414,12 @@ function apiBatchCreateShipments(sessionToken, orderIds) {
       }
     }
     return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiLinkSpxTracking(sessionToken, orderId, trackingNumber, notes) {
+  return apiCall(function() {
+    return linkRealSpxTracking(sessionToken, orderId, trackingNumber, notes);
   });
 }
 
