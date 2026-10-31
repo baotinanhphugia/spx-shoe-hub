@@ -926,7 +926,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
             </div>
             <div class="form-group">
               <label class="form-label">SPX Base URL</label>
-              <input type="text" class="form-control" id="cfgSpxUrl" placeholder="https://open-api.spx.vn">
+              <input type="text" class="form-control" id="cfgSpxUrl" placeholder="https://spx.vn">
             </div>
             <div class="grid-2">
               <div class="form-group">
@@ -3304,7 +3304,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
   function loadSettingsPage() {
     callServer('apiGetSettings', [state.sessionToken], function(cfg) {
       document.getElementById('cfgSpxMode').value = cfg.SPX_MODE || 'REAL';
-      document.getElementById('cfgSpxUrl').value = cfg.SPX_BASE_URL || 'https://open-api.spx.vn';
+      document.getElementById('cfgSpxUrl').value = cfg.SPX_BASE_URL || 'https://spx.vn';
       document.getElementById('cfgSpxAppId').value = cfg.SPX_APP_ID || '102384205900430';
       document.getElementById('cfgSpxMerchantId').value = cfg.SPX_MERCHANT_ID || '15093594984';
       document.getElementById('cfgSenderName').value = cfg.SENDER_NAME || '';

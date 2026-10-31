@@ -562,7 +562,7 @@ function seedInitialDataIfEmpty() {
       { key: 'SHOP_NAME', value: 'Bảo Tín Shoes', description: 'Tên shop hiển thị', updatedAt: now },
       { key: 'SHOP_HOTLINE', value: '0988.888.888', description: 'Hotline CSKH', updatedAt: now },
       { key: 'SPX_MODE', value: 'REAL', description: 'Chế độ SPX: REAL (Thực tế) hoặc MOCK (Giả lập)', updatedAt: now },
-      { key: 'SPX_BASE_URL', value: 'https://open-api.spx.vn', description: 'Endpoint SPX Open API', updatedAt: now },
+      { key: 'SPX_BASE_URL', value: 'https://spx.vn', description: 'Endpoint SPX Open API', updatedAt: now },
       { key: 'SPX_APP_ID', value: '102384205900430', description: 'Mã người dùng (User ID) SPX', updatedAt: now },
       { key: 'SPX_APP_SECRET', value: '8d1aefec-ba63-4a34-984b-26fc1d5054ea', description: 'Secret Key SPX', updatedAt: now },
       { key: 'SPX_MERCHANT_ID', value: '15093594984', description: 'ID tài khoản (Account ID) SPX', updatedAt: now },

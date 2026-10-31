@@ -132,7 +132,7 @@ const CONFIG = {
   // Cấu hình SPX API mặc định
   SPX: {
     MODE: 'REAL',                   // 'REAL' (Kết nối tài khoản SPX thật) hoặc 'MOCK' (Giả lập)
-    BASE_URL: 'https://open-api.spx.vn',
+    BASE_URL: 'https://spx.vn',
     APP_ID: '102384205900430',       // Mã người dùng (User ID)
     APP_SECRET: '8d1aefec-ba63-4a34-984b-26fc1d5054ea', // Secret Key
     MERCHANT_ID: '15093594984',      // ID tài khoản (Account ID)

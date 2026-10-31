@@ -47,7 +47,7 @@ Hệ thống được thiết kế hoàn chỉnh theo quy chuẩn giao diện v�
 ## 2. Thông Tin Kết Nối SPX Thật Của Shop
 
 Hệ thống đã được tích hợp sẵn thông số tài khoản SPX Live thật do chủ shop cung cấp:
-- **Nền tảng:** Open API SPX Việt Nam (`https://open-api.spx.vn`)
+- **Nền tảng:** Open API SPX Việt Nam (`https://spx.vn`)
 - **Mã người dùng (User ID / App ID):** `102384205900430`
 - **Mã bảo mật (Secret Key / API Token):** `8d1aefec-ba63-4a34-984b-26fc1d5054ea`
 - **ID tài khoản (Account ID / Merchant ID):** `15093594984`
