@@ -395,10 +395,36 @@ function generateCode128Svg(text, height, barWidth) {
 }
 
 /**
+ * Hàm lấy chi tiết đơn nội bộ an toàn (không yêu cầu auth token)
+ */
+function getOrderDetailInternal(orderId) {
+  var orders = readTableData(CONFIG.SHEETS.ORDERS);
+  var order = null;
+  for (var i = 0; i < orders.length; i++) {
+    if (orders[i].id === orderId) {
+      order = orders[i];
+      break;
+    }
+  }
+  if (!order) throw new Error('Không tìm thấy đơn hàng: ' + orderId);
+  var allItems = readTableData(CONFIG.SHEETS.ORDER_ITEMS);
+  var items = allItems.filter(function(it) { return it.orderId === orderId; });
+  var shipments = readTableData(CONFIG.SHEETS.SHIPMENTS);
+  var shipment = null;
+  for (var s = 0; s < shipments.length; s++) {
+    if (shipments[s].orderId === orderId) {
+      shipment = shipments[s];
+      break;
+    }
+  }
+  return { order: order, items: items, shipment: shipment };
+}
+
+/**
  * Render nội dung 1 tem vận đơn SPX (Single Airway Bill Card)
  */
 function renderSingleAirwayBillBox(orderId, index, total) {
-  var detail = getOrderDetail(null, orderId);
+  var detail = getOrderDetailInternal(orderId);
   var order = detail.order;
   var items = detail.items;
   var shipment = detail.shipment || {};

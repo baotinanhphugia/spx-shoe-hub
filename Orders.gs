@@ -567,7 +567,9 @@ function getOrdersList(token, queryOptions) {
  * LẤY CHI TIẾT MỘT ĐƠN HÀNG ĐỂ XEM VÀ IN TEM
  */
 function getOrderDetail(token, orderId) {
-  var user = requireAuth(token);
+  if (token) {
+    requireAuth(token);
+  }
   var orders = readTableData(CONFIG.SHEETS.ORDERS);
   var order = null;
   for (var i = 0; i < orders.length; i++) {
@@ -577,7 +579,9 @@ function getOrderDetail(token, orderId) {
     }
   }
   if (!order) throw new Error('Không tìm thấy đơn hàng: ' + orderId);
-  requireOrderAccess(token, order.saleId);
+  if (token) {
+    requireOrderAccess(token, order.saleId);
+  }
   
   var allItems = readTableData(CONFIG.SHEETS.ORDER_ITEMS);
   var items = allItems.filter(function(it) { return it.orderId === orderId; });
