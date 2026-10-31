@@ -88,6 +88,10 @@ function sanitizeForSheet(value) {
     if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
       return "'" + str;
     }
+    // Ép kiểu chuỗi số có số 0 ở đầu (ví dụ số điện thoại) để Google Sheet không cắt mất số 0
+    if (firstChar === '0' && /^\d+$/.test(str)) {
+      return "'" + str;
+    }
   }
   return str;
 }

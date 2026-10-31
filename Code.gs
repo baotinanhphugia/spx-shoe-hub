@@ -298,6 +298,10 @@ function sanitizeForSheet(value) {
     if (firstChar === '=' || firstChar === '+' || firstChar === '-' || firstChar === '@') {
       return "'" + str;
     }
+    // Ép kiểu chuỗi số có số 0 ở đầu (ví dụ số điện thoại) để Google Sheet không cắt mất số 0
+    if (firstChar === '0' && /^\d+$/.test(str)) {
+      return "'" + str;
+    }
   }
   return str;
 }
@@ -2855,7 +2859,15 @@ function resolveSpxAddressCode(province, district, ward) {
 function validatePhoneNumber(phone) {
   if (!phone) return false;
   var clean = String(phone).replace(/\D/g, '');
+  if (clean.length === 9) clean = '0' + clean;
   return clean.length === 10 && clean.charAt(0) === '0';
+}
+
+function normalizePhoneNumber(phone) {
+  if (!phone) return '';
+  var clean = String(phone).replace(/\D/g, '');
+  if (clean.length === 9) clean = '0' + clean;
+  return clean;
 }
 
 /**
@@ -3222,7 +3234,7 @@ function createExchangeOrder(token, originalOrderId, oldSku, newSku, feeDifferen
   
   var newOrderPayload = {
     customerName: originalOrder.customerName,
-    customerPhone: originalOrder.customerPhone,
+    customerPhone: normalizePhoneNumber(originalOrder.customerPhone),
     addressDetail: originalOrder.addressDetail,
     province: originalOrder.province,
     district: originalOrder.district,
