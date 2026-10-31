@@ -1458,6 +1458,17 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     currentOrderList: []
   };
 
+  // Hàm escape ký tự HTML an toàn
+  function escapeHtml(str) {
+    if (str === null || str === undefined) return '';
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;')
+      .replace(/'/g, '&#039;');
+  }
+
   // Khởi động ứng dụng
   window.addEventListener('DOMContentLoaded', function() {
     initApp();
