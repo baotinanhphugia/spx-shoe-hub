@@ -856,7 +856,138 @@ SPXVN9876543210,650000,28000,622000"></textarea>
 </div>
 
 <!-- MODAL: CHI TIẾT ĐƠN HÀNG & IN TEM -->
-<div class="modal-backdrop" id="orderDetailModal">
+  <!-- MODAL: THÊM SẢN PHẨM MẪU MỚI -->
+  <div class="modal-backdrop" id="addProductModal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header">
+        <div class="modal-title">👟 Thêm Mẫu Giày Mới</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('addProductModal')">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div class="form-group">
+          <label class="form-label">Mã Mẫu (Model Code) *</label>
+          <input type="text" class="form-control" id="newProductModelCode" placeholder="Ví dụ: CC03, TC05...">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tên sản phẩm *</label>
+          <input type="text" class="form-control" id="newProductName" placeholder="Giày Chelsea Boot Da Bò...">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Nhóm sản phẩm</label>
+            <select class="form-control" id="newProductCategory">
+              <option value="Giày cao cổ">Giày cao cổ</option>
+              <option value="Giày thấp cổ">Giày thấp cổ</option>
+              <option value="Giày lười">Giày lười</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cân nặng tham khảo (gram)</label>
+            <input type="number" class="form-control" id="newProductWeight" value="700">
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Giá bán chuẩn (VND) *</label>
+          <input type="number" class="form-control" id="newProductPrice" placeholder="Ví dụ: 850000">
+        </div>
+        <div class="form-group">
+          <label class="form-label">URL Ảnh mẫu (Link hình ảnh)</label>
+          <input type="url" class="form-control" id="newProductImageUrl" placeholder="https://...">
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addProductModal')">Hủy</button>
+          <button type="button" class="btn btn-primary" onclick="saveNewProduct()">Lưu Mẫu Mới</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SINH BIẾN THỂ SIZE HÀNG LOẠT -->
+  <div class="modal-backdrop" id="batchVariantModal">
+    <div class="modal-box" style="max-width:540px;">
+      <div class="modal-header">
+        <div class="modal-title">⚡ Sinh Biến Thể SKU Hàng Loạt</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('batchVariantModal')">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div class="form-group">
+          <label class="form-label">Chọn Mẫu Giày *</label>
+          <select class="form-control" id="batchModelSelect">
+            <option value="">-- Chọn Mẫu --</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Danh sách Màu (cách nhau bằng dấu phẩy) *</label>
+          <input type="text" class="form-control" id="batchColorsInput" placeholder="Ví dụ: DEN, NAU, TRANG">
+          <small style="color:#777;">Hệ thống sẽ chuẩn hóa mã màu viết hoa không dấu.</small>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Danh sách Size EU (cách nhau bằng dấu phẩy) *</label>
+          <input type="text" class="form-control" id="batchSizesInput" value="38, 39, 40, 41, 42, 43">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Giá bán mặc định (VND)</label>
+            <input type="number" class="form-control" id="batchPriceInput" placeholder="Điền sẵn theo mẫu">
+          </div>
+          <div class="form-group">
+            <label class="form-label">Cân nặng (gram)</label>
+            <input type="number" class="form-control" id="batchWeightInput" value="700">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('batchVariantModal')">Hủy</button>
+          <button type="button" class="btn btn-primary" onclick="submitBatchVariants()">Tạo Các Biến Thể</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: THÊM NHÂN SỰ MỚI -->
+  <div class="modal-backdrop" id="addStaffModal">
+    <div class="modal-box" style="max-width:500px;">
+      <div class="modal-header">
+        <div class="modal-title">👤 Thêm Nhân Sự Mới</div>
+        <button class="btn btn-secondary btn-sm" onclick="closeModal('addStaffModal')">✕</button>
+      </div>
+      <div style="padding:16px;">
+        <div class="form-group">
+          <label class="form-label">Họ và tên *</label>
+          <input type="text" class="form-control" id="newStaffName" placeholder="Ví dụ: Nguyễn Văn B">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Email đăng nhập *</label>
+          <input type="email" class="form-control" id="newStaffEmail" placeholder="sale2@shop.vn">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Số điện thoại *</label>
+          <input type="tel" class="form-control" id="newStaffPhone" placeholder="0988123456">
+        </div>
+        <div class="grid-2">
+          <div class="form-group">
+            <label class="form-label">Vai trò (Role) *</label>
+            <select class="form-control" id="newStaffRole">
+              <option value="SALE">SALE (Bán hàng)</option>
+              <option value="KHO">KHO (Thủ kho)</option>
+              <option value="DOI_SOAT">DOI_SOAT (Đối soát / Kế toán)</option>
+              <option value="ADMIN">ADMIN (Quản trị)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Mã PIN đăng nhập (6 số) *</label>
+            <input type="password" class="form-control" id="newStaffPin" value="123456" maxlength="6">
+          </div>
+        </div>
+        <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:16px;">
+          <button type="button" class="btn btn-secondary" onclick="closeModal('addStaffModal')">Hủy</button>
+          <button type="button" class="btn btn-primary" onclick="saveNewStaff()">Lưu Nhân Sự</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="orderDetailModal">
   <div class="modal-box" style="max-width:700px;">
     <div class="modal-header">
       <div class="modal-title" id="odModalTitle">Chi tiết đơn hàng</div>
