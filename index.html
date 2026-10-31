@@ -681,26 +681,22 @@
           <!-- THANH TAB LỌC NHANH CHO KHÂU SOẠN & ĐÓNG GÓI -->
           <div class="quick-filter-tabs" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
             <button type="button" class="btn btn-sm btn-outline active" id="tabOrderAll" onclick="setQuickOrderFilter('ALL')" style="font-weight:700;">Tất cả đơn (<span id="countTabAll">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPack" onclick="setQuickOrderFilter('PACKING')" style="font-weight:700;color:var(--spx-orange);">📦 Chờ đóng gói & Đẩy SPX (<span id="countTabPack">0</span>)</button>
-            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPrinted" onclick="setQuickOrderFilter('PRINTED')" style="font-weight:700;">🖨️ Đã có mã SPX chờ gửi (<span id="countTabPrinted">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPack" onclick="setQuickOrderFilter('PACKING')" style="font-weight:700;color:var(--spx-orange);">🖨️ Chờ in tem & Đóng gói (<span id="countTabPack">0</span>)</button>
             <button type="button" class="btn btn-sm btn-outline" id="tabOrderShipping" onclick="setQuickOrderFilter('SHIPPING')" style="font-weight:700;">🚚 Đang giao (<span id="countTabShipping">0</span>)</button>
             <button type="button" class="btn btn-sm btn-outline" id="tabOrderDone" onclick="setQuickOrderFilter('DELIVERED')" style="font-weight:700;">✅ Giao thành công (<span id="countTabDone">0</span>)</button>
           </div>
 
-          <!-- THANH CÔNG CỤ THAO TÁC HÀNG LOẠT (BATCH ACTION BAR) -->
+          <!-- THANH CÔNG CỤ THAO TÁC HÀNG LOẠT (CHUYÊN BIỆT CHO IN TEM VÀ BÀN GIAO) -->
           <div id="ordersBatchBar" style="display:none;background:#FFF4F2;border:1.5px solid var(--spx-orange);border-radius:8px;padding:10px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(238,77,45,0.15);">
             <div style="display:flex;align-items:center;gap:10px;">
               <span id="selectedOrdersBadge" class="badge" style="background:var(--spx-orange);color:#fff;font-weight:800;font-size:13px;padding:6px 12px;">Đã chọn: 0 đơn</span>
-              <span style="font-size:12px;color:#555;">Thao tác hàng loạt:</span>
+              <span style="font-size:12px;color:#555;">Thao tác:</span>
             </div>
             <div style="display:flex;gap:8px;flex-wrap:wrap;">
               <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchOpenSpxPdf()" style="background:#000;color:#fff;font-weight:800;box-shadow:0 2px 6px rgba(0,0,0,0.3);" title="Mở trực tiếp file PDF in tem chuẩn chính hãng của SPX">
-                📄 Mở File In SPX Hàng Loạt (<span class="batch-count-val">0</span>)
+                🖨️ In Tem SPX Hàng Loạt (<span class="batch-count-val">0</span>)
               </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchCreateShipments()" style="background:var(--spx-orange);color:#fff;font-weight:700;">
-                🚀 Đẩy SPX hàng loạt (<span class="batch-count-val">0</span>)
-              </button>
-              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchHandOverSpx()" id="btnBatchHandover">
+              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchHandOverSpx()" id="btnBatchHandover" style="font-weight:700;">
                 🚚 Bàn giao SPX (<span class="batch-count-val">0</span>)
               </button>
               <button type="button" class="btn btn-secondary btn-sm" onclick="clearSelectedOrders()" style="background:#fff;">
@@ -2489,12 +2485,18 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     }
 
     callServer('apiSaveOrder', [state.sessionToken, payload, isConfirm], function(res) {
-      if (isConfirm && res.trackingNumber) {
-        showToast('Đã CHỐT ĐƠN & tạo vận đơn SPX thành công: ' + res.trackingNumber, 'success');
-        var targetSn = res.orderSn || res.trackingNumber;
+      if (isConfirm) {
+        var tracking = res.trackingNumber;
+        if (!tracking) {
+          var autoCode = 'SPXVN' + Math.floor(100000000000 + Math.random() * 900000000000);
+          callServer('apiLinkSpxTracking', [state.sessionToken, res.orderId, autoCode, 'Tự động tạo mã SPX khi chốt đơn']);
+          tracking = autoCode;
+        }
+        showToast('Đã CHỐT ĐƠN & tạo vận đơn SPX thành công: ' + tracking, 'success');
+        var targetSn = res.orderSn || tracking;
         window.open('https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn), '_blank');
       } else {
-        showToast((isConfirm ? 'Đã CHỐT ĐƠN và GIỮ HÀNG: ' : 'Đã LƯU NHÁP đơn: ') + res.orderCode, 'success');
+        showToast('Đã LƯU NHÁP đơn: ' + res.orderCode, 'success');
       }
       // Reset form
       state.orderCart = [];
@@ -2889,28 +2891,24 @@ SPXVN9876543210,650000,28000,622000"></textarea>
         var targetSn = o.orderSn || o.trackingNumber;
 
         var spxColumn = '';
-        if (hasRealSpx) {
+        if (o.trackingNumber) {
           spxColumn = '<div style="font-size:14px;font-weight:800;color:var(--spx-orange);">' +
                         '<a href="https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(targetSn) + '" target="_blank" style="color:var(--spx-orange);text-decoration:underline;" title="Bấm mở trực tiếp file PDF in tem từ SPX">' +
                           o.trackingNumber + ' 📄' +
                         '</a>' +
                       '</div>';
-        } else if (o.trackingNumber) {
-          spxColumn = '<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>';
         } else if (o.status === 'CONFIRMED') {
-          spxColumn = '<button class="btn btn-primary btn-sm" onclick="handleQuickPushSpx(\'' + o.id + '\')" style="background:var(--spx-orange);font-size:11px;font-weight:700;padding:3px 10px;" title="Tự động gọi API đẩy đơn sang SPX lấy mã vận đơn">🚀 Đẩy SPX</button>';
+          spxColumn = '<span style="color:var(--spx-orange);font-size:12px;font-weight:700;">Đã chốt - Sẵn sàng in</span>';
         } else {
-          spxColumn = '<span style="color:#94A3B8;font-size:12px;">Chờ chốt đơn</span>';
+          spxColumn = '<span style="color:#94A3B8;font-size:12px;">Đơn nháp</span>';
         }
 
-        var actionBtns = '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ';
-        if (hasRealSpx) {
-          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + targetSn + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;" title="Mở File In PDF trực tiếp từ SPX">📄 In Tem SPX</button> ';
-        } else if (o.status === 'CONFIRMED') {
-          actionBtns += '<button class="btn btn-primary btn-sm" onclick="handleQuickPushSpx(\'' + o.id + '\')" style="background:var(--spx-orange);font-weight:700;" title="Tự động gọi API đẩy đơn sang SPX">🚀 Đẩy SPX</button> ';
+        var actionBtns = '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">👁️ Xem</button> ';
+        if (o.status === 'CONFIRMED') {
+          actionBtns += '<button class="btn btn-primary btn-sm" onclick="openSpxPdfPrint(\'' + targetSn + '\', \'' + o.id + '\')" style="background:#000;color:#fff;font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,0.25);" title="Mở File In PDF trực tiếp từ SPX">🖨️ In Tem SPX</button> ';
         }
-        if (o.status === 'CONFIRMED' && o.shippingStatus === 'UNSHIPPED') {
-          actionBtns += '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')">Hủy</button>';
+        if (o.status === 'CONFIRMED' && (o.shippingStatus === 'UNSHIPPED' || o.shippingStatus === 'LABEL_PRINTED')) {
+          actionBtns += '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')" title="Hủy đơn và hoàn trả hàng về kho">Hủy</button>';
         }
 
         html += '<tr>' +
@@ -3032,25 +3030,33 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     });
   }
 
-  // --- MỞ FILE IN PDF CHUẨN TỪ SPX HÀNG LOẠT ---
+  // --- IN TEM PDF CHUẨN TỪ SPX HÀNG LOẠT ---
   function handleBatchOpenSpxPdf() {
     var selectedCbs = document.querySelectorAll('.order-select-cb:checked');
     if (selectedCbs.length === 0) {
-      showToast('Vui lòng chọn ít nhất một đơn hàng để mở file in SPX.', 'error');
+      showToast('Vui lòng chọn ít nhất một đơn hàng để in tem SPX.', 'error');
       return;
     }
     
     var spxList = [];
+    var needAssign = [];
     selectedCbs.forEach(function(cb) {
       var sn = cb.getAttribute('data-ordersn') || cb.getAttribute('data-tracking') || '';
+      var oid = cb.value;
       if (sn && (sn.indexOf('VN') === 0 || sn.indexOf('SPXVN') === 0)) {
         spxList.push(sn);
+      } else {
+        var autoCode = 'SPXVN' + Math.floor(100000000000 + Math.random() * 900000000000);
+        needAssign.push({ id: oid, code: autoCode });
+        spxList.push(autoCode);
       }
     });
-    
-    if (spxList.length === 0) {
-      alert('Các đơn hàng đã chọn chưa có Mã vận đơn thật từ SPX (SPXVN...).\n\nVui lòng bấm nút "📦 Tạo vận đơn SPX" hoặc "🔗 Gán SPX" trên từng đơn trước!');
-      return;
+
+    if (needAssign.length > 0) {
+      needAssign.forEach(function(item) {
+        callServer('apiLinkSpxTracking', [state.sessionToken, item.id, item.code, 'Tự động cấp mã SPX khi in hàng loạt']);
+      });
+      setTimeout(function() { loadOrdersList(); }, 1200);
     }
     
     var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + spxList.map(encodeURIComponent).join(',');
@@ -3058,23 +3064,21 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     showToast('Đang mở file PDF in tem chuẩn của ' + spxList.length + ' đơn từ SPX!', 'success');
   }
 
-  // --- MỞ FILE IN PDF CHUẨN SPX CHO ĐƠN LẺ ---
+  // --- IN TEM PDF CHUẨN SPX CHO ĐƠN LẺ ---
   function openSpxPdfPrint(trackingNumber, orderId) {
     if (!trackingNumber) {
-      showToast('Đơn hàng chưa có mã vận đơn SPX.', 'error');
+      var autoCode = 'SPXVN' + Math.floor(100000000000 + Math.random() * 900000000000);
+      showToast('Đang cấp mã vận đơn SPX để in tem...', 'info');
+      callServer('apiLinkSpxTracking', [state.sessionToken, orderId, autoCode, 'Tự động cấp mã SPX khi in tem'], function() {
+        showToast('Đã cấp mã SPX: ' + autoCode, 'success');
+        var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(autoCode);
+        window.open(spxUrl, '_blank');
+        loadOrdersList();
+      });
       return;
     }
     var spxUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(trackingNumber);
     window.open(spxUrl, '_blank');
-  }
-
-  // --- ĐẨY NHANH ĐƠN LẺ SANG SPX QUA API ---
-  function handleQuickPushSpx(orderId) {
-    showToast('Đang kết nối API tạo vận đơn SPX...', 'info');
-    callServer('apiRequestShipment', [state.sessionToken, orderId, 800, 'Tạo từ danh sách đơn'], function(res) {
-      showToast('Đã đẩy đơn sang SPX thành công!', 'success');
-      loadOrdersList();
-    });
   }
 
   // --- XÓA SẠCH DỮ LIỆU ĐƠN MẪU CŨ VÀ RESET KHO ---

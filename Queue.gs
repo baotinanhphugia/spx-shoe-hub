@@ -218,8 +218,10 @@ function processJobQueue(maxBatch) {
 /**
  * Xử lý tác vụ tạo vận đơn SPX (Không giữ Lock kho trong lúc gọi mạng)
  */
-function executeCreateShipmentJob(payload) {
-  var orderId = payload.orderId;
+function executeCreateShipmentJob(payload, extraOptions) {
+  var orderId = (typeof payload === 'object' && payload !== null) ? payload.orderId : payload;
+  var weightG = (payload && payload.weightG) || (extraOptions && extraOptions.weightG) || 800;
+  var notes = (payload && payload.notes) || (extraOptions && extraOptions.notes) || '';
   var orders = readTableData(CONFIG.SHEETS.ORDERS);
   var order = null;
   for (var i = 0; i < orders.length; i++) {

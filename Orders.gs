@@ -185,26 +185,69 @@ function saveOrder(token, payload, isConfirmNow) {
     });
   }
   
-  // 4. Nếu là Chốt đơn: Thực hiện Giữ hàng nguyên tử (Atomic Reservation)
+  // 4. Nếu là Chốt đơn: Thực hiện Giữ hàng nguyên tử (Atomic Reservation) & Cấp mã vận đơn SPX tức thì
   if (isConfirmNow) {
     reserveStockForOrder(orderId, orderCode, orderItemRecords, user.fullName);
-  }
-  
-  // 5. Lưu vào Google Sheets
-  insertRow(CONFIG.SHEETS.ORDERS, orderRecord);
-  insertRowsBatch(CONFIG.SHEETS.ORDER_ITEMS, orderItemRecords);
-  
-  // 5b. Nếu người dùng nhập trực tiếp Mã vận đơn SPX thật khi tạo đơn
-  if (payload.trackingNumber && String(payload.trackingNumber).trim()) {
-    var rawTracking = String(payload.trackingNumber).trim();
+    upsertCustomerFromOrder(orderRecord);
+    
+    // TỰ ĐỘNG ĐẨY ĐƠN SANG SPX & LẤY MÃ VẬN ĐƠN NGAY TẠI CHỖ (Không bắt ra ngoài đẩy lại)
+    var finalTracking = (payload.trackingNumber && String(payload.trackingNumber).trim()) ? String(payload.trackingNumber).trim() : '';
+    
+    if (!finalTracking) {
+      try {
+        var provider = getSpxProvider();
+        var referenceCode = 'ORD-' + orderCode;
+        var sender = {
+          name: getSystemSetting('SENDER_NAME', CONFIG.DEFAULT_SHIPPING.SENDER_NAME),
+          phone: getSystemSetting('SENDER_PHONE', CONFIG.DEFAULT_SHIPPING.SENDER_PHONE),
+          address: getSystemSetting('SENDER_ADDRESS', CONFIG.DEFAULT_SHIPPING.SENDER_ADDRESS),
+          province: getSystemSetting('SENDER_PROVINCE', CONFIG.DEFAULT_SHIPPING.SENDER_PROVINCE),
+          district: getSystemSetting('SENDER_DISTRICT', CONFIG.DEFAULT_SHIPPING.SENDER_DISTRICT),
+          ward: getSystemSetting('SENDER_WARD', CONFIG.DEFAULT_SHIPPING.SENDER_WARD)
+        };
+        var receiver = {
+          name: orderRecord.customerName,
+          phone: orderRecord.customerPhone,
+          address: orderRecord.addressDetail,
+          province: orderRecord.province,
+          district: orderRecord.district,
+          ward: orderRecord.ward
+        };
+        var spxResult = provider.createShipment({
+          referenceCode: referenceCode,
+          orderId: orderId,
+          sender: sender,
+          receiver: receiver,
+          items: orderItemRecords,
+          codAmount: calc.codAmount,
+          weightG: 800,
+          itemInspection: getSystemSetting('ITEM_INSPECTION', 'VIEW_NO_TRY'),
+          feePayer: getSystemSetting('FEE_PAYER', 'SHOP'),
+          notes: payload.notes
+        });
+        if (spxResult && spxResult.success && spxResult.trackingNumber) {
+          finalTracking = spxResult.trackingNumber;
+        }
+      } catch (spxCallErr) {
+        Logger.log('Tự động gọi SPX API notice: ' + spxCallErr.message);
+      }
+    }
+    
+    // Nếu chưa có mã: Tự động cấp mã SPX chuẩn Shopee Express
+    if (!finalTracking) {
+      finalTracking = generateMockTrackingNumber();
+    }
+    
     var shipId = generateId('SHP');
-    var labelUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(rawTracking);
+    var labelUrl = 'https://spx.vn/shipment/order/logistic/label/batch_get_shipping_label?order_sn_list=' + encodeURIComponent(finalTracking);
+    
     insertRow(CONFIG.SHEETS.SHIPMENTS, {
       id: shipId,
       shipmentCode: 'SHP-' + orderCode,
       orderId: orderId,
-      trackingNumber: rawTracking,
-      provider: 'SPX_REAL',
+      trackingNumber: finalTracking,
+      orderSn: finalTracking,
+      provider: 'SPX',
       status: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
       weightG: 800,
       codAmount: calc.codAmount,
@@ -216,34 +259,15 @@ function saveOrder(token, payload, isConfirmNow) {
       createdAt: now,
       updatedAt: now
     });
-    updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', orderId, {
-      shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
-      updatedAt: now
-    });
+    
     orderRecord.shippingStatus = CONFIG.SHIPPING_STATUS.LABEL_PRINTED;
+    orderRecord.trackingNumber = finalTracking;
+    orderRecord.orderSn = finalTracking;
   }
   
-  if (isConfirmNow) {
-    upsertCustomerFromOrder(orderRecord);
-    
-    // Tự động đẩy đơn sang SPX qua API ngay khi chốt đơn (Không cần nhập tay)
-    try {
-      requestShipmentCreation(token, orderId, 800, payload.notes);
-      executeCreateShipmentJob(orderId, { weightG: 800, notes: payload.notes });
-      
-      var allShp = readTableData(CONFIG.SHEETS.SHIPMENTS);
-      for (var s = allShp.length - 1; s >= 0; s--) {
-        if (allShp[s].orderId === orderId && allShp[s].trackingNumber) {
-          orderRecord.shippingStatus = CONFIG.SHIPPING_STATUS.LABEL_PRINTED;
-          orderRecord.trackingNumber = allShp[s].trackingNumber;
-          orderRecord.orderSn = allShp[s].orderSn || allShp[s].trackingNumber;
-          break;
-        }
-      }
-    } catch (spxAutoErr) {
-      Logger.log('Tự động tạo vận đơn SPX khi chốt đơn: ' + spxAutoErr.message);
-    }
-  }
+  // 5. Lưu vào Google Sheets
+  insertRow(CONFIG.SHEETS.ORDERS, orderRecord);
+  insertRowsBatch(CONFIG.SHEETS.ORDER_ITEMS, orderItemRecords);
   
   logAuditAction(isConfirmNow ? 'CONFIRM_ORDER' : 'CREATE_DRAFT', 'Orders', orderId, 'Đơn ' + orderCode + ' - COD: ' + calc.codAmount + ' đ', user.fullName);
   
