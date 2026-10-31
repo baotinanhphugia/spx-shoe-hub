@@ -274,7 +274,26 @@
         <div class="grid-2">
           <!-- Cột trái: Thông tin khách hàng & Vận chuyển -->
           <div class="card">
-            <div class="card-title">Thông tin người nhận</div>
+            <div class="card-title" style="display:flex;justify-content:space-between;align-items:center;">
+              <span>Thông tin người nhận</span>
+              <span class="badge" style="background:#FFF0ED;color:var(--spx-orange);border:1px solid #FFCCBC;font-size:11px;font-weight:700;">⚡ Smart Parser</span>
+            </div>
+
+            <!-- SMART ADDRESS PARSER BOX (Nhận diện tự động) -->
+            <div style="background:#FFF9F8;border:1.5px dashed var(--spx-orange);border-radius:8px;padding:12px;margin-bottom:16px;">
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                <label style="font-size:12px;font-weight:800;color:var(--spx-orange);display:flex;align-items:center;gap:6px;margin:0;">
+                  <span>⚡</span> Dán nhanh tin nhắn (Tự nhận diện Tên, SĐT, Địa chỉ, Ghi chú)
+                </label>
+                <button type="button" class="btn btn-secondary btn-sm" onclick="clearSmartParseInput()" style="padding:2px 8px;font-size:11px;">Xóa</button>
+              </div>
+              <textarea class="form-control" id="smartRawInput" rows="2" style="font-size:12px;background:#fff;border-color:#FFCCBC;" placeholder="Dán toàn bộ tin nhắn khách gửi từ Zalo / FB / TikTok / SMS vào đây... (Ví dụ: Nguyễn Văn Nam 0988123456 Số 15 ngõ 120 Cầu Giấy, Dịch Vọng, Cầu Giấy, Hà Nội - Cho xem hàng)..." oninput="autoSmartParseAddress(this.value)"></textarea>
+              <div style="display:flex;justify-content:space-between;align-items:center;margin-top:8px;">
+                <span style="font-size:11px;color:var(--spx-text-muted);">Tự bóc tách thông minh Tên, SĐT, Tỉnh/TP, Quận/Huyện, Xã, Địa chỉ & Ghi chú</span>
+                <button type="button" class="btn btn-primary btn-sm" onclick="applySmartParseAddress()" style="background:var(--spx-orange);border-color:var(--spx-orange);font-weight:700;padding:4px 12px;">⚡ Phân tích & Điền</button>
+              </div>
+            </div>
+
             <div class="form-group">
               <label class="form-label">Tên khách hàng *</label>
               <input type="text" class="form-control" id="orderCustName" placeholder="Nguyễn Văn A">
@@ -297,12 +316,64 @@
                   <option value="Đà Nẵng">Đà Nẵng</option>
                   <option value="Hải Phòng">Hải Phòng</option>
                   <option value="Cần Thơ">Cần Thơ</option>
+                  <option value="An Giang">An Giang</option>
+                  <option value="Bà Rịa - Vũng Tàu">Bà Rịa - Vũng Tàu</option>
+                  <option value="Bắc Giang">Bắc Giang</option>
+                  <option value="Bắc Kạn">Bắc Kạn</option>
+                  <option value="Bạc Liêu">Bạc Liêu</option>
                   <option value="Bắc Ninh">Bắc Ninh</option>
+                  <option value="Bến Tre">Bến Tre</option>
+                  <option value="Bình Định">Bình Định</option>
                   <option value="Bình Dương">Bình Dương</option>
+                  <option value="Bình Phước">Bình Phước</option>
+                  <option value="Bình Thuận">Bình Thuận</option>
+                  <option value="Cà Mau">Cà Mau</option>
+                  <option value="Cao Bằng">Cao Bằng</option>
+                  <option value="Đắk Lắk">Đắk Lắk</option>
+                  <option value="Đắk Nông">Đắk Nông</option>
+                  <option value="Điện Biên">Điện Biên</option>
                   <option value="Đồng Nai">Đồng Nai</option>
-                  <option value="Quảng Ninh">Quảng Ninh</option>
-                  <option value="Thanh Hóa">Thanh Hóa</option>
+                  <option value="Đồng Tháp">Đồng Tháp</option>
+                  <option value="Gia Lai">Gia Lai</option>
+                  <option value="Hà Giang">Hà Giang</option>
+                  <option value="Hà Nam">Hà Nam</option>
+                  <option value="Hà Tĩnh">Hà Tĩnh</option>
+                  <option value="Hải Dương">Hải Dương</option>
+                  <option value="Hậu Giang">Hậu Giang</option>
+                  <option value="Hòa Bình">Hòa Bình</option>
+                  <option value="Hưng Yên">Hưng Yên</option>
+                  <option value="Khánh Hòa">Khánh Hòa</option>
+                  <option value="Kiên Giang">Kiên Giang</option>
+                  <option value="Kon Tum">Kon Tum</option>
+                  <option value="Lai Châu">Lai Châu</option>
+                  <option value="Lâm Đồng">Lâm Đồng</option>
+                  <option value="Lạng Sơn">Lạng Sơn</option>
+                  <option value="Lào Cai">Lào Cai</option>
+                  <option value="Long An">Long An</option>
+                  <option value="Nam Định">Nam Định</option>
                   <option value="Nghệ An">Nghệ An</option>
+                  <option value="Ninh Bình">Ninh Bình</option>
+                  <option value="Ninh Thuận">Ninh Thuận</option>
+                  <option value="Phú Thọ">Phú Thọ</option>
+                  <option value="Phú Yên">Phú Yên</option>
+                  <option value="Quảng Bình">Quảng Bình</option>
+                  <option value="Quảng Nam">Quảng Nam</option>
+                  <option value="Quảng Ngãi">Quảng Ngãi</option>
+                  <option value="Quảng Ninh">Quảng Ninh</option>
+                  <option value="Quảng Trị">Quảng Trị</option>
+                  <option value="Sóc Trăng">Sóc Trăng</option>
+                  <option value="Sơn La">Sơn La</option>
+                  <option value="Tây Ninh">Tây Ninh</option>
+                  <option value="Thái Bình">Thái Bình</option>
+                  <option value="Thái Nguyên">Thái Nguyên</option>
+                  <option value="Thanh Hóa">Thanh Hóa</option>
+                  <option value="Huế">Thừa Thiên Huế</option>
+                  <option value="Tiền Giang">Tiền Giang</option>
+                  <option value="Trà Vinh">Trà Vinh</option>
+                  <option value="Tuyên Quang">Tuyên Quang</option>
+                  <option value="Vĩnh Long">Vĩnh Long</option>
+                  <option value="Vĩnh Phúc">Vĩnh Phúc</option>
+                  <option value="Yên Bái">Yên Bái</option>
                 </select>
               </div>
               <div class="form-group">
@@ -436,6 +507,38 @@
               <button class="btn btn-primary btn-sm" onclick="switchView('create-order')">+ Tạo đơn</button>
             </div>
           </div>
+
+          <!-- THANH TAB LỌC NHANH CHO KHÂU SOẠN & ĐÓNG GÓI -->
+          <div class="quick-filter-tabs" style="display:flex;gap:8px;margin-bottom:14px;overflow-x:auto;padding-bottom:4px;">
+            <button type="button" class="btn btn-sm btn-outline active" id="tabOrderAll" onclick="setQuickOrderFilter('ALL')" style="font-weight:700;">Tất cả đơn (<span id="countTabAll">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPack" onclick="setQuickOrderFilter('PACKING')" style="font-weight:700;color:var(--spx-orange);">📦 Chờ in tem & Đóng gói (<span id="countTabPack">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderPrinted" onclick="setQuickOrderFilter('PRINTED')" style="font-weight:700;">🖨️ Đã in tem chờ gửi (<span id="countTabPrinted">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderShipping" onclick="setQuickOrderFilter('SHIPPING')" style="font-weight:700;">🚚 Đang giao (<span id="countTabShipping">0</span>)</button>
+            <button type="button" class="btn btn-sm btn-outline" id="tabOrderDone" onclick="setQuickOrderFilter('DELIVERED')" style="font-weight:700;">✅ Giao thành công (<span id="countTabDone">0</span>)</button>
+          </div>
+
+          <!-- THANH CÔNG CỤ THAO TÁC HÀNG LOẠT (BATCH ACTION BAR) -->
+          <div id="ordersBatchBar" style="display:none;background:#FFF4F2;border:1.5px solid var(--spx-orange);border-radius:8px;padding:10px 16px;margin-bottom:14px;align-items:center;justify-content:space-between;gap:12px;box-shadow:0 2px 8px rgba(238,77,45,0.15);">
+            <div style="display:flex;align-items:center;gap:10px;">
+              <span id="selectedOrdersBadge" class="badge" style="background:var(--spx-orange);color:#fff;font-weight:800;font-size:13px;padding:6px 12px;">Đã chọn: 0 đơn</span>
+              <span style="font-size:12px;color:#555;">Thao tác hàng loạt cho đóng gói:</span>
+            </div>
+            <div style="display:flex;gap:8px;flex-wrap:wrap;">
+              <button type="button" class="btn btn-primary btn-sm" onclick="handleBatchPrintAirwayBills()" style="background:var(--spx-orange);font-weight:800;box-shadow:0 2px 6px rgba(238,77,45,0.3);">
+                🖨️ In tem SPX hàng loạt (<span class="batch-count-val">0</span>)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchCreateShipments()">
+                📦 Tạo vận đơn SPX (<span class="batch-count-val">0</span>)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="handleBatchHandOverSpx()" id="btnBatchHandover">
+                🚚 Bàn giao SPX (<span class="batch-count-val">0</span>)
+              </button>
+              <button type="button" class="btn btn-secondary btn-sm" onclick="clearSelectedOrders()" style="background:#fff;">
+                ✖️ Bỏ chọn
+              </button>
+            </div>
+          </div>
+
           <!-- Bộ lọc -->
           <div class="grid-4" style="margin-bottom:14px;">
             <input type="text" class="form-control" id="orderSearchInput" placeholder="Tìm theo Mã đơn, SĐT, Tên khách..." onkeyup="handleOrderSearch(event)">
@@ -447,12 +550,13 @@
             </select>
             <select class="form-control" id="orderFilterShipping" onchange="loadOrdersList()">
               <option value="">-- Vận chuyển --</option>
-              <option value="UNSHIPPED">Chưa gửi kho</option>
-              <option value="LABEL_PRINTED">Đã tạo vận đơn</option>
-              <option value="DISPATCHED">Đã bàn giao SPX</option>
-              <option value="DELIVERING">Đang giao</option>
-              <option value="DELIVERED">Giao thành công</option>
-              <option value="RETURNING">Đang hoàn</option>
+              <option value="UNSHIPPED">Chưa gửi kho (UNSHIPPED)</option>
+              <option value="QUEUED">Hàng đợi tạo SPX (QUEUED)</option>
+              <option value="LABEL_PRINTED">Đã tạo vận đơn / In tem (LABEL_PRINTED)</option>
+              <option value="DISPATCHED">Đã bàn giao SPX (DISPATCHED)</option>
+              <option value="DELIVERING">Đang giao (DELIVERING)</option>
+              <option value="DELIVERED">Giao thành công (DELIVERED)</option>
+              <option value="RETURNING">Đang hoàn (RETURNING)</option>
             </select>
             <button class="btn btn-secondary" onclick="loadOrdersList()">Tìm kiếm</button>
           </div>
@@ -461,6 +565,7 @@
             <table class="table">
               <thead>
                 <tr>
+                  <th style="width:36px;text-align:center;"><input type="checkbox" id="selectAllOrdersCb" onchange="toggleSelectAllOrders(this.checked)" title="Chọn tất cả"></th>
                   <th>Mã đơn</th>
                   <th>Khách hàng</th>
                   <th>SĐT</th>
@@ -473,7 +578,7 @@
                 </tr>
               </thead>
               <tbody id="ordersTableBody">
-                <tr><td colspan="9" style="text-align:center;padding:24px;">Đang tải danh sách đơn hàng...</td></tr>
+                <tr><td colspan="10" style="text-align:center;padding:24px;">Đang tải danh sách đơn hàng...</td></tr>
               </tbody>
             </table>
           </div>
@@ -1991,22 +2096,329 @@ SPXVN9876543210,650000,28000,622000"></textarea>
   }
 
   // -------------------------------------------------------------
-  // VIEW: DANH SÁCH ĐƠN HÀNG (ORDERS)
+  // SMART ADDRESS PARSER: TỰ NHẬN DIỆN THÔNG TIN KHÁCH HÀNG
+  // Hỗ trợ bóc tách Tên, SĐT, Tỉnh/TP, Quận, Xã, Địa chỉ, Ghi chú từ tin nhắn Zalo/FB/TikTok/SMS
   // -------------------------------------------------------------
+  function smartParseCustomerInfo(rawText) {
+    if (!rawText || !rawText.trim()) return null;
+    var text = rawText.trim();
+    var result = {
+      name: '',
+      phone: '',
+      province: '',
+      district: '',
+      ward: '',
+      addressDetail: '',
+      notes: ''
+    };
+
+    // 1. TÌM SỐ ĐIỆN THOẠI (10 số Việt Nam)
+    var phoneRegex = /(?:\+84|84|0)[35789](?:[\s.-]?\d){8}/g;
+    var phoneMatch = text.match(phoneRegex);
+    if (phoneMatch && phoneMatch.length > 0) {
+      var rawPhone = phoneMatch[0].replace(/\D/g, '');
+      if (rawPhone.startsWith('84')) rawPhone = '0' + rawPhone.slice(2);
+      if (rawPhone.length === 10) {
+        result.phone = rawPhone;
+      }
+    }
+
+    // 2. TÌM GHI CHÚ GIAO HÀNG
+    var noteRegex = /(?:ghi chú|lưu ý|note|dặn dò|chỉ dẫn)[\s:]+([^\n\r,]+)/i;
+    var noteMatch = text.match(noteRegex);
+    if (noteMatch) {
+      result.notes = noteMatch[1].trim();
+    } else {
+      var specialNotes = [];
+      if (/cho xem hàng/i.test(text)) specialNotes.push('Cho xem hàng');
+      if (/không cho xem/i.test(text)) specialNotes.push('Không cho xem hàng');
+      if (/cho thử/i.test(text)) specialNotes.push('Cho thử hàng');
+      if (/gọi trước/i.test(text)) specialNotes.push('Gọi trước khi giao');
+      if (/hành chính/i.test(text)) specialNotes.push('Giao giờ hành chính');
+      if (specialNotes.length > 0) {
+        result.notes = specialNotes.join(', ');
+      }
+    }
+
+    // 3. TÌM TỈNH / THÀNH PHỐ (63 tỉnh thành Việt Nam + tên viết tắt)
+    var provinceMap = [
+      { name: 'Hà Nội', aliases: ['hà nội', 'ha noi', 'hn'] },
+      { name: 'TP Hồ Chí Minh', aliases: ['hồ chí minh', 'ho chi minh', 'hcm', 'tp hcm', 'tp.hcm', 'sài gòn', 'sai gon', 'sg'] },
+      { name: 'Đà Nẵng', aliases: ['đà nẵng', 'da nang', 'đn', 'dn'] },
+      { name: 'Hải Phòng', aliases: ['hải phòng', 'hai phong', 'hp'] },
+      { name: 'Cần Thơ', aliases: ['cần thơ', 'can tho', 'ct'] },
+      { name: 'Bắc Ninh', aliases: ['bắc ninh', 'bac ninh', 'bn'] },
+      { name: 'Bình Dương', aliases: ['bình dương', 'binh duong', 'bd'] },
+      { name: 'Đồng Nai', aliases: ['đồng nai', 'dong nai', 'đni', 'dni'] },
+      { name: 'Quảng Ninh', aliases: ['quảng ninh', 'quang ninh', 'qn'] },
+      { name: 'Thanh Hóa', aliases: ['thanh hóa', 'thanh hoa', 'th'] },
+      { name: 'Nghệ An', aliases: ['nghệ an', 'nghe an', 'na'] },
+      { name: 'Huế', aliases: ['thừa thiên huế', 'thua thien hue', 'huế', 'hue'] },
+      { name: 'An Giang', aliases: ['an giang'] },
+      { name: 'Bà Rịa - Vũng Tàu', aliases: ['bà rịa', 'vũng tàu', 'ba ria', 'vung tau', 'brvt', 'vt'] },
+      { name: 'Bắc Giang', aliases: ['bắc giang', 'bac giang', 'bg'] },
+      { name: 'Bắc Kạn', aliases: ['bắc kạn', 'bac kan'] },
+      { name: 'Bạc Liêu', aliases: ['bạc liêu', 'bac lieu'] },
+      { name: 'Bến Tre', aliases: ['bến tre', 'ben tre'] },
+      { name: 'Bình Định', aliases: ['bình định', 'binh dinh'] },
+      { name: 'Bình Phước', aliases: ['bình phước', 'binh phuoc'] },
+      { name: 'Bình Thuận', aliases: ['bình thuận', 'binh thuan'] },
+      { name: 'Cà Mau', aliases: ['cà mau', 'ca mau'] },
+      { name: 'Cao Bằng', aliases: ['cao bằng', 'cao bang'] },
+      { name: 'Đắk Lắk', aliases: ['đắk lắk', 'dak lak', 'đắc lắc'] },
+      { name: 'Đắk Nông', aliases: ['đắk nông', 'dak nong'] },
+      { name: 'Điện Biên', aliases: ['điện biên', 'dien bien'] },
+      { name: 'Đồng Tháp', aliases: ['đồng tháp', 'dong thap'] },
+      { name: 'Gia Lai', aliases: ['gia lai'] },
+      { name: 'Hà Giang', aliases: ['hà giang', 'ha giang'] },
+      { name: 'Hà Nam', aliases: ['hà nam', 'ha nam'] },
+      { name: 'Hà Tĩnh', aliases: ['hà tĩnh', 'ha tinh'] },
+      { name: 'Hải Dương', aliases: ['hải dương', 'hai duong', 'hd'] },
+      { name: 'Hậu Giang', aliases: ['hậu giang', 'hau giang'] },
+      { name: 'Hòa Bình', aliases: ['hòa bình', 'hoa binh', 'hb'] },
+      { name: 'Hưng Yên', aliases: ['hưng yên', 'hung yen', 'hy'] },
+      { name: 'Khánh Hòa', aliases: ['khánh hòa', 'khanh hoa', 'nha trang'] },
+      { name: 'Kiên Giang', aliases: ['kiên giang', 'kien giang', 'rạch giá'] },
+      { name: 'Kon Tum', aliases: ['kon tum', 'kontum'] },
+      { name: 'Lai Châu', aliases: ['lai châu', 'lai chau'] },
+      { name: 'Lâm Đồng', aliases: ['lâm đồng', 'lam dong', 'đà lạt', 'da lat'] },
+      { name: 'Lạng Sơn', aliases: ['lạng sơn', 'lang son'] },
+      { name: 'Lào Cai', aliases: ['lào cai', 'lao cai'] },
+      { name: 'Long An', aliases: ['long an'] },
+      { name: 'Nam Định', aliases: ['nam định', 'nam dinh', 'nd'] },
+      { name: 'Ninh Bình', aliases: ['ninh bình', 'ninh binh', 'nb'] },
+      { name: 'Ninh Thuận', aliases: ['ninh thuận', 'ninh thuan'] },
+      { name: 'Phú Thọ', aliases: ['phú thọ', 'phu tho', 'việt trì'] },
+      { name: 'Phú Yên', aliases: ['phú yên', 'phu yen', 'tuy hòa'] },
+      { name: 'Quảng Bình', aliases: ['quảng bình', 'quang binh', 'đồng hới'] },
+      { name: 'Quảng Nam', aliases: ['quảng nam', 'quang nam', 'hội an', 'tam kỳ'] },
+      { name: 'Quảng Ngãi', aliases: ['quảng ngãi', 'quang ngai'] },
+      { name: 'Quảng Trị', aliases: ['quảng trị', 'quang tri', 'đông hà'] },
+      { name: 'Sóc Trăng', aliases: ['sóc trăng', 'soc trang'] },
+      { name: 'Sơn La', aliases: ['sơn la', 'son la'] },
+      { name: 'Tây Ninh', aliases: ['tây ninh', 'tay ninh'] },
+      { name: 'Thái Bình', aliases: ['thái bình', 'thai binh', 'tb'] },
+      { name: 'Thái Nguyên', aliases: ['thái nguyên', 'thai nguyen', 'tn'] },
+      { name: 'Tiền Giang', aliases: ['tiền giang', 'tien giang', 'mỹ tho'] },
+      { name: 'Trà Vinh', aliases: ['trà vinh', 'tra vinh'] },
+      { name: 'Tuyên Quang', aliases: ['tuyên quang', 'tuyen quang'] },
+      { name: 'Vĩnh Long', aliases: ['vĩnh long', 'vinh long'] },
+      { name: 'Vĩnh Phúc', aliases: ['vĩnh phúc', 'vinh phuc', 'vp'] },
+      { name: 'Yên Bái', aliases: ['yên bái', 'yen bai'] }
+    ];
+
+    var lowerText = text.toLowerCase();
+    for (var p = 0; p < provinceMap.length; p++) {
+      var item = provinceMap[p];
+      for (var a = 0; a < item.aliases.length; a++) {
+        var alias = item.aliases[a];
+        var reg = new RegExp('(?:tỉnh|thành phố|tp\\.?)?\\s*' + alias.replace('.', '\\.') + '(?:\\b|$|[,\\n])', 'i');
+        if (reg.test(lowerText)) {
+          result.province = item.name;
+          break;
+        }
+      }
+      if (result.province) break;
+    }
+
+    // 4. TÌM QUẬN / HUYỆN
+    var distRegex = /(?:quận|huyện|thị xã|tp\.|thành phố|q\.|h\.|tx\.)\s+([A-Za-z0-9À-ỹ\s]+?)(?=[,\n]|\s+(?:phường|xã|thị trấn|p\.|x\.|tỉnh|tp|thành phố)|$)/i;
+    var distMatch = text.match(distRegex);
+    if (distMatch) {
+      result.district = distMatch[1].trim();
+    }
+
+    // 5. TÌM PHƯỜNG / XÃ
+    var wardRegex = /(?:phường|xã|thị trấn|p\.|x\.|tt\.)\s+([A-Za-z0-9À-ỹ\s]+?)(?=[,\n]|\s+(?:quận|huyện|thị xã|tp\.|q\.|h\.|tỉnh|thành phố)|$)/i;
+    var wardMatch = text.match(wardRegex);
+    if (wardMatch) {
+      result.ward = wardMatch[1].trim();
+    }
+
+    // 6. TÌM TÊN KHÁCH HÀNG
+    var nameRegex = /(?:tên|khách|họ tên|người nhận|anh|chị|em|name)[\s:]+([A-Za-zÀ-ỹ\s]{2,30}?)(?=[,\n\r]|sđt|đt|tel|phone|\d{8,11}|$)/i;
+    var nameMatch = text.match(nameRegex);
+    if (nameMatch) {
+      result.name = nameMatch[1].trim();
+    } else {
+      var lines = text.split(/[\n\r]+/);
+      for (var l = 0; l < lines.length; l++) {
+        var line = lines[l].trim();
+        if (line && !/\d{5,}/.test(line) && /^[A-Za-zÀ-ỹ\s]{2,30}$/.test(line)) {
+          result.name = line;
+          break;
+        }
+      }
+      if (!result.name && phoneMatch && text.indexOf(phoneMatch[0]) > 0) {
+        var beforePhone = text.substring(0, text.indexOf(phoneMatch[0])).trim();
+        var words = beforePhone.split(/[\s,]+/);
+        if (words.length >= 2 && words.length <= 5 && !/\d/.test(beforePhone)) {
+          result.name = beforePhone;
+        }
+      }
+    }
+
+    // 7. TÌM ĐỊA CHỈ CHI TIẾT
+    var addrRegex = /(?:địa chỉ|đc|address)[\s:]+([^\n\r]+)/i;
+    var addrMatch = text.match(addrRegex);
+    if (addrMatch) {
+      result.addressDetail = addrMatch[1].trim();
+    } else {
+      var cleanForAddr = text;
+      if (result.name) cleanForAddr = cleanForAddr.replace(result.name, '');
+      if (result.phone) cleanForAddr = cleanForAddr.replace(new RegExp(result.phone + '|\\d{10,11}', 'g'), '');
+      if (result.notes) cleanForAddr = cleanForAddr.replace(result.notes, '');
+      cleanForAddr = cleanForAddr.replace(/sđt|đt|tel|phone|tên|khách|người nhận|địa chỉ|ghi chú|note/gi, ' ');
+      cleanForAddr = cleanForAddr.replace(/[\n\r,]+/g, ' ').replace(/\s+/g, ' ').trim();
+      if (cleanForAddr.length > 5) {
+        result.addressDetail = cleanForAddr;
+      }
+    }
+
+    return result;
+  }
+
+  function autoSmartParseAddress(val) {
+    if (val && val.length > 20 && !document.getElementById('orderCustPhone').value) {
+      // Tự động phân tích khi dán chuỗi dài
+      applySmartParseAddress(false);
+    }
+  }
+
+  function applySmartParseAddress(showNotice) {
+    var raw = document.getElementById('smartRawInput').value;
+    if (!raw || !raw.trim()) {
+      if (showNotice !== false) showToast('Vui lòng dán nội dung tin nhắn của khách vào ô trên.', 'error');
+      return;
+    }
+
+    var parsed = smartParseCustomerInfo(raw);
+    if (!parsed) return;
+
+    var filledCount = 0;
+    if (parsed.name) {
+      document.getElementById('orderCustName').value = parsed.name;
+      filledCount++;
+    }
+    if (parsed.phone) {
+      document.getElementById('orderCustPhone').value = parsed.phone;
+      handlePhoneLookup(parsed.phone);
+      filledCount++;
+    }
+    if (parsed.province) {
+      document.getElementById('orderProvince').value = parsed.province;
+      handleProvinceChange();
+      filledCount++;
+    }
+    if (parsed.district) {
+      document.getElementById('orderDistrict').value = parsed.district;
+      filledCount++;
+    }
+    if (parsed.ward) {
+      document.getElementById('orderWard').value = parsed.ward;
+      filledCount++;
+    }
+    if (parsed.addressDetail) {
+      document.getElementById('orderAddressDetail').value = parsed.addressDetail;
+      filledCount++;
+    }
+    if (parsed.notes) {
+      document.getElementById('orderNotes').value = parsed.notes;
+    }
+
+    if (filledCount > 0) {
+      showToast('⚡ Đã nhận diện tự động: ' + (parsed.name || 'Khách') + ' | ' + (parsed.phone || '') + ' | ' + (parsed.province || ''), 'success');
+    } else {
+      if (showNotice !== false) showToast('Không tìm thấy thông tin phù hợp trong đoạn văn bản.', 'error');
+    }
+  }
+
+  function clearSmartParseInput() {
+    document.getElementById('smartRawInput').value = '';
+  }
+
+  // -------------------------------------------------------------
+  // VIEW: DANH SÁCH ĐƠN HÀNG & THAO TÁC HÀNG LOẠT (BATCH PRINTING)
+  // -------------------------------------------------------------
+  var currentOrdersCache = [];
+  var currentQuickTab = 'ALL';
+
+  function setQuickOrderFilter(tabKey) {
+    currentQuickTab = tabKey;
+    document.querySelectorAll('.quick-filter-tabs button').forEach(function(btn) {
+      btn.classList.remove('active');
+      btn.style.background = '#fff';
+      btn.style.color = '#333';
+    });
+
+    var activeBtn = document.getElementById('tabOrder' + (tabKey === 'ALL' ? 'All' : (tabKey === 'PACKING' ? 'Pack' : (tabKey === 'PRINTED' ? 'Printed' : (tabKey === 'SHIPPING' ? 'Shipping' : 'Done')))));
+    if (activeBtn) {
+      activeBtn.classList.add('active');
+      activeBtn.style.background = 'var(--spx-orange)';
+      activeBtn.style.color = '#fff';
+    }
+
+    if (tabKey === 'PACKING') {
+      document.getElementById('orderFilterStatus').value = 'CONFIRMED';
+      document.getElementById('orderFilterShipping').value = 'UNSHIPPED';
+    } else if (tabKey === 'PRINTED') {
+      document.getElementById('orderFilterStatus').value = 'CONFIRMED';
+      document.getElementById('orderFilterShipping').value = 'LABEL_PRINTED';
+    } else if (tabKey === 'SHIPPING') {
+      document.getElementById('orderFilterStatus').value = '';
+      document.getElementById('orderFilterShipping').value = 'DELIVERING';
+    } else if (tabKey === 'DELIVERED') {
+      document.getElementById('orderFilterStatus').value = '';
+      document.getElementById('orderFilterShipping').value = 'DELIVERED';
+    } else {
+      document.getElementById('orderFilterStatus').value = '';
+      document.getElementById('orderFilterShipping').value = '';
+    }
+
+    loadOrdersList();
+  }
+
   function loadOrdersList() {
     var search = document.getElementById('orderSearchInput').value.trim();
     var status = document.getElementById('orderFilterStatus').value;
     var shipping = document.getElementById('orderFilterShipping').value;
 
-    callServer('apiGetOrdersList', [state.sessionToken, { search: search, status: status, shippingStatus: shipping, page: 1, pageSize: 30 }], function(res) {
+    callServer('apiGetOrdersList', [state.sessionToken, { search: search, status: status, shippingStatus: shipping, page: 1, pageSize: 50 }], function(res) {
       var tbody = document.getElementById('ordersTableBody');
-      if (!res.items || res.items.length === 0) {
-        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:24px;">Không tìm thấy đơn hàng nào.</td></tr>';
+      var items = res.items || [];
+      currentOrdersCache = items;
+
+      // Cập nhật bộ đếm
+      var countAll = items.length;
+      var countPack = 0;
+      var countPrinted = 0;
+      var countShipping = 0;
+      var countDelivered = 0;
+
+      items.forEach(function(o) {
+        if (o.status === 'CONFIRMED' && (o.shippingStatus === 'UNSHIPPED' || o.shippingStatus === 'QUEUED')) countPack++;
+        if (o.shippingStatus === 'LABEL_PRINTED') countPrinted++;
+        if (o.shippingStatus === 'DELIVERING' || o.shippingStatus === 'DISPATCHED') countShipping++;
+        if (o.shippingStatus === 'DELIVERED') countDelivered++;
+      });
+
+      if (document.getElementById('countTabAll')) document.getElementById('countTabAll').innerText = countAll;
+      if (document.getElementById('countTabPack')) document.getElementById('countTabPack').innerText = countPack;
+      if (document.getElementById('countTabPrinted')) document.getElementById('countTabPrinted').innerText = countPrinted;
+      if (document.getElementById('countTabShipping')) document.getElementById('countTabShipping').innerText = countShipping;
+      if (document.getElementById('countTabDone')) document.getElementById('countTabDone').innerText = countDelivered;
+
+      if (items.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;padding:24px;color:#888;">Không tìm thấy đơn hàng nào phù hợp bộ lọc.</td></tr>';
+        clearSelectedOrders();
         return;
       }
+
       var html = '';
-      res.items.forEach(function(o) {
+      items.forEach(function(o) {
+        var isPackable = (o.status === 'CONFIRMED' && (o.shippingStatus === 'UNSHIPPED' || o.shippingStatus === 'QUEUED' || o.shippingStatus === 'LABEL_PRINTED'));
         html += '<tr>' +
+          '<td style="text-align:center;"><input type="checkbox" class="order-select-cb" value="' + o.id + '" data-code="' + o.orderCode + '" onchange="updateSelectedOrdersState()"></td>' +
           '<td><strong>' + o.orderCode + '</strong></td>' +
           '<td>' + o.customerName + '</td>' +
           '<td>' + o.customerPhone + '</td>' +
@@ -2017,11 +2429,13 @@ SPXVN9876543210,650000,28000,622000"></textarea>
           '<td>' + (o.trackingNumber ? ('<strong style="color:var(--spx-orange);">' + o.trackingNumber + '</strong>') : '<span style="color:#999;">-</span>') + '</td>' +
           '<td>' +
             '<button class="btn btn-secondary btn-sm" onclick="viewOrderDetail(\'' + o.id + '\')">Xem</button> ' +
+            (isPackable ? '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')" title="In tem dán thùng">🖨️ In</button> ' : '') +
             (o.status === 'CONFIRMED' && o.shippingStatus === 'UNSHIPPED' ? '<button class="btn btn-danger btn-sm" onclick="handleCancelOrder(\'' + o.id + '\')">Hủy</button>' : '') +
           '</td>' +
         '</tr>';
       });
       tbody.innerHTML = html;
+      clearSelectedOrders();
     });
   }
 
@@ -2029,57 +2443,113 @@ SPXVN9876543210,650000,28000,622000"></textarea>
     if (e.key === 'Enter') loadOrdersList();
   }
 
-  function viewOrderDetail(orderId) {
-    openModal('orderDetailModal');
-    document.getElementById('odModalContent').innerHTML = 'Đang tải thông tin...';
-    callServer('apiGetOrderDetail', [state.sessionToken, orderId], function(res) {
-      var o = res.order;
-      var items = res.items;
-      var ship = res.shipment;
+  // --- XỬ LÝ CHỌN HÀNG LOẠT (BATCH SELECTION) ---
+  function toggleSelectAllOrders(checked) {
+    var cbs = document.querySelectorAll('.order-select-cb');
+    cbs.forEach(function(cb) { cb.checked = checked; });
+    updateSelectedOrdersState();
+  }
 
-      var itemsHtml = '';
-      items.forEach(function(it) {
-        itemsHtml += '<tr><td>' + it.sku + ' (' + it.color + ' / ' + it.size + ')</td><td>' + it.quantity + '</td><td>' + it.unitPrice.toLocaleString('vi-VN') + ' đ</td><td><strong>' + it.lineTotal.toLocaleString('vi-VN') + ' đ</strong></td></tr>';
-      });
+  function getSelectedOrderIds() {
+    var selected = [];
+    document.querySelectorAll('.order-select-cb:checked').forEach(function(cb) {
+      selected.push(cb.value);
+    });
+    return selected;
+  }
 
-      var html = '<div style="display:flex;justify-content:space-between;margin-bottom:12px;border-bottom:1px solid #eee;padding-bottom:8px;">' +
-        '<div><strong>Mã đơn:</strong> <span style="font-size:16px;color:var(--spx-orange);">' + o.orderCode + '</span><br><small>Tạo lúc: ' + o.createdAt + ' | Sale: ' + o.saleName + '</small></div>' +
-        '<div><span class="badge badge-' + o.status.toLowerCase() + '">' + o.status + '</span> <span class="badge badge-' + o.shippingStatus.toLowerCase() + '">' + o.shippingStatus + '</span></div>' +
-      '</div>' +
-      '<div class="grid-2" style="margin-bottom:12px;">' +
-        '<div><strong>Người nhận:</strong> ' + o.customerName + ' (' + o.customerPhone + ')<br><strong>Địa chỉ:</strong> ' + o.addressDetail + ', ' + (o.ward ? o.ward + ', ' : '') + o.province + '<br><strong>Ghi chú:</strong> ' + (o.notes || 'Không có') + '</div>' +
-        '<div><strong>Tiền hàng:</strong> ' + o.subtotal.toLocaleString('vi-VN') + ' đ<br><strong>Giảm giá:</strong> -' + o.discount.toLocaleString('vi-VN') + ' đ<br><strong>Phí ship khách:</strong> +' + o.customerShippingFee.toLocaleString('vi-VN') + ' đ<br><strong>Thu COD:</strong> <span style="font-size:18px;font-weight:900;color:var(--spx-orange);">' + o.codAmount.toLocaleString('vi-VN') + ' đ</span></div>' +
-      '</div>' +
-      '<table class="table" style="font-size:12px;margin-bottom:12px;">' +
-        '<thead><tr><th>Sản phẩm / SKU</th><th>SL</th><th>Đơn giá</th><th>Thành tiền</th></tr></thead>' +
-        '<tbody>' + itemsHtml + '</tbody>' +
-      '</table>';
+  function updateSelectedOrdersState() {
+    var selectedIds = getSelectedOrderIds();
+    var count = selectedIds.length;
+    var batchBar = document.getElementById('ordersBatchBar');
+    var badge = document.getElementById('selectedOrdersBadge');
+    var selectAllCb = document.getElementById('selectAllOrdersCb');
 
-      if (ship) {
-        html += '<div style="background:#FDF2F0;padding:10px;border-radius:6px;border:1px dashed var(--spx-orange);margin-bottom:12px;">' +
-          '<strong>VẬN ĐƠN SPX:</strong> <span style="font-size:16px;font-weight:bold;color:var(--spx-orange);">' + ship.trackingNumber + '</span> (' + ship.status + ') ' +
-          '<button class="btn btn-primary btn-sm" onclick="printWaybill(\'' + o.id + '\')">🖨️ In Tem</button>' +
-        '</div>';
+    if (count > 0) {
+      batchBar.style.display = 'flex';
+      badge.innerText = 'Đã chọn: ' + count + ' đơn';
+      document.querySelectorAll('.batch-count-val').forEach(function(el) { el.innerText = count; });
+    } else {
+      batchBar.style.display = 'none';
+      if (selectAllCb) selectAllCb.checked = false;
+    }
+  }
+
+  function clearSelectedOrders() {
+    var cbs = document.querySelectorAll('.order-select-cb');
+    cbs.forEach(function(cb) { cb.checked = false; });
+    var selectAllCb = document.getElementById('selectAllOrdersCb');
+    if (selectAllCb) selectAllCb.checked = false;
+    updateSelectedOrdersState();
+  }
+
+  // --- IN TEM HÀNG LOẠT CHO ĐÓNG GÓI ---
+  function handleBatchPrintAirwayBills() {
+    var selectedIds = getSelectedOrderIds();
+    if (selectedIds.length === 0) {
+      showToast('Vui lòng chọn ít nhất một đơn hàng để in tem.', 'error');
+      return;
+    }
+    showToast('Đang khởi tạo ' + selectedIds.length + ' phiếu in tem SPX cho máy in nhiệt...', 'info');
+    callServer('apiGetBatchAirwayBillHtml', [state.sessionToken, selectedIds], function(html) {
+      var w = window.open('', '_blank');
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+      } else {
+        alert('Trình duyệt đang chặn cửa sổ pop-up. Vui lòng cho phép pop-up để mở trang in!');
       }
-
-      document.getElementById('odModalContent').innerHTML = html;
+      setTimeout(function() {
+        loadOrdersList();
+        clearSelectedOrders();
+      }, 1500);
     });
   }
 
-  function handleCancelOrder(orderId) {
-    var reason = prompt('Nhập lý do hủy đơn hàng:');
-    if (!reason) return;
-    callServer('apiCancelOrder', [state.sessionToken, orderId, reason], function() {
-      showToast('Đã hủy đơn và giải phóng hàng đang giữ thành công.', 'success');
+  // --- TẠO VẬN ĐƠN SPX HÀNG LOẠT ---
+  function handleBatchCreateShipments() {
+    var selectedIds = getSelectedOrderIds();
+    if (selectedIds.length === 0) {
+      showToast('Vui lòng chọn đơn hàng cần tạo vận đơn.', 'error');
+      return;
+    }
+    if (!confirm('Xác nhận đưa ' + selectedIds.length + ' đơn hàng vào hàng đợi tạo vận đơn SPX?')) return;
+
+    showToast('Đang gửi ' + selectedIds.length + ' đơn vào hàng đợi SPX...', 'info');
+    callServer('apiBatchCreateShipments', [state.sessionToken, selectedIds], function(res) {
+      showToast('Đã đưa thành công ' + res.successCount + '/' + res.total + ' đơn vào hàng đợi SPX.', 'success');
       loadOrdersList();
+      clearSelectedOrders();
+    });
+  }
+
+  // --- BÀN GIAO SPX HÀNG LOẠT (XUẤT KHO) ---
+  function handleBatchHandOverSpx() {
+    var selectedIds = getSelectedOrderIds();
+    if (selectedIds.length === 0) {
+      showToast('Vui lòng chọn đơn hàng cần bàn giao SPX.', 'error');
+      return;
+    }
+    if (!confirm('Xác nhận kho đã đóng gói và xuất kho bàn giao ' + selectedIds.length + ' đơn cho tài xế SPX?')) return;
+
+    showToast('Đang xử lý xuất kho bàn giao SPX...', 'info');
+    callServer('apiBatchHandOverToSpx', [state.sessionToken, selectedIds], function(res) {
+      showToast('Đã bàn giao SPX thành công ' + res.successCount + '/' + res.total + ' đơn hàng.', 'success');
+      loadOrdersList();
+      clearSelectedOrders();
     });
   }
 
   function printWaybill(orderId) {
     callServer('apiGetAirwayBillHtml', [state.sessionToken, orderId], function(html) {
       var w = window.open('', '_blank');
-      w.document.write(html);
-      w.document.close();
+      if (w) {
+        w.document.write(html);
+        w.document.close();
+      } else {
+        alert('Trình duyệt đang chặn cửa sổ pop-up. Vui lòng cho phép pop-up để mở trang in!');
+      }
+      setTimeout(function() { loadOrdersList(); }, 1200);
     });
   }
 

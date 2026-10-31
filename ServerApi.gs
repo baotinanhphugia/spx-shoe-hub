@@ -119,6 +119,12 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiHandOverToSpx(sessionToken, payload.orderId);
     case 'GET_AIRWAY_BILL':
       return apiGetAirwayBillHtml(sessionToken, payload.orderId);
+    case 'GET_BATCH_AIRWAY_BILLS':
+      return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
+    case 'BATCH_CREATE_SHIPMENTS':
+      return apiBatchCreateShipments(sessionToken, payload.orderIds);
+    case 'BATCH_HANDOVER_SPX':
+      return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
     case 'GET_RETURNS':
       return apiGetReturnsList(sessionToken);
     case 'PROCESS_RETURN_QC':
@@ -381,6 +387,49 @@ function apiGetAirwayBillHtml(sessionToken, orderId) {
   return apiCall(function() {
     requireAuth(sessionToken);
     return renderSpxAirwayBillHtml(orderId);
+  });
+}
+
+function apiGetBatchAirwayBillHtml(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireAuth(sessionToken);
+    return renderBatchSpxAirwayBillHtml(orderIds);
+  });
+}
+
+function apiBatchCreateShipments(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        requestShipmentCreation(sessionToken, list[i]);
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiBatchHandOverToSpx(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        handOverToSpx(sessionToken, list[i]);
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
   });
 }
 

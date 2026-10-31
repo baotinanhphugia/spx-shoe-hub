@@ -3,7 +3,8 @@
  * Bao gồm đầy đủ 14 Modules backend chuẩn Google Apps Script runtime V8.
  * Tích hợp sẵn RESTful API phục vụ Frontend chạy trên GitHub Pages và CSDL Google Sheets.
  * Hỗ trợ toàn diện Thêm - Sửa - Xóa cho Sản phẩm, Biến thể SKU, Khách hàng và Nhân sự.
- * Tự động thiết lập Fixtures kiểm thử độc lập - 15/15 Tiêu chí nghiệm thu ĐẠT 100%.
+ * Tích hợp In tem vận đơn SPX hàng loạt (Batch Airway Bill Print A6/A7 Code128 SVG) và Smart Address Parser.
+ * 15/15 Tiêu chí kiểm thử nghiệp vụ nghiệm thu ĐẠT 100%.
  */
 
 
@@ -2261,11 +2262,76 @@ RealSpxProvider.prototype.getTracking = function(trackingNumber) {
 
 /**
  * -------------------------------------------------------------
- * 3. TẠO GIAO DIỆN TEM IN VẬN ĐƠN CHUẨN SPX (Airway Bill HTML)
+ * 3. BỘ TẠO MÃ VẠCH SVG CODE128 VÀ TEM IN VẬN ĐƠN CHUẨN SPX
+ * Hỗ trợ in đơn lẻ và in hàng loạt cho khâu kho đóng gói (Batch Printing A6/A7)
  * -------------------------------------------------------------
  */
-function renderSpxAirwayBillHtml(orderId) {
-  var detail = getOrderDetail(null, orderId); // getOrderDetail internal
+
+/**
+ * Sinh mã vạch chuẩn ISO Code128B dưới dạng SVG siêu nét (Hoạt động offline 100%)
+ */
+function generateCode128Svg(text, height, barWidth) {
+  var patterns = [
+    "212222","222122","222221","121223","121322","131222","122213","122312","132212","221213",
+    "221312","231212","112232","122132","122231","113222","123122","123221","223211","221132",
+    "221231","213212","223112","312131","311222","321122","321221","312212","322112","322211",
+    "212123","212321","232121","111323","131123","131321","112313","132113","132311","211313",
+    "231113","231311","112133","112331","132131","113123","113321","133121","313121","211331",
+    "231131","213113","213311","213131","311123","311321","331121","312113","312311","332111",
+    "314111","221411","431111","111224","111422","121124","121421","141122","141221","112214",
+    "112412","122114","122411","142112","142211","241211","221114","413111","241112","134111",
+    "111242","121142","121241","114212","124112","124211","411212","421112","421211","212141",
+    "214121","412121","111143","111341","131141","114113","114311","411113","411311","113141",
+    "114131","311141","411131","211412","211214","211232","2331112"
+  ];
+  
+  var cleanText = String(text || '').replace(/[^\x20-\x7E]/g, '');
+  if (!cleanText) cleanText = 'SPX-PARCEL';
+  
+  var codes = [104]; // Code B Start
+  var checkSum = 104;
+  
+  for (var i = 0; i < cleanText.length; i++) {
+    var codeVal = cleanText.charCodeAt(i) - 32;
+    codes.push(codeVal);
+    checkSum += codeVal * (i + 1);
+  }
+  
+  codes.push(checkSum % 103);
+  codes.push(106); // Stop
+  
+  var modules = "";
+  for (var c = 0; c < codes.length; c++) {
+    var pat = patterns[codes[c]];
+    if (!pat) continue;
+    for (var p = 0; p < pat.length; p++) {
+      var width = parseInt(pat.charAt(p), 10);
+      var bit = (p % 2 === 0) ? "1" : "0";
+      for (var w = 0; w < width; w++) {
+        modules += bit;
+      }
+    }
+  }
+  
+  var bw = barWidth || 2;
+  var h = height || 48;
+  var svgWidth = modules.length * bw;
+  
+  var rects = [];
+  for (var m = 0; m < modules.length; m++) {
+    if (modules.charAt(m) === '1') {
+      rects.push('<rect x="' + (m * bw) + '" y="0" width="' + bw + '" height="' + h + '" fill="#000" />');
+    }
+  }
+  
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="' + svgWidth + '" height="' + h + '" viewBox="0 0 ' + svgWidth + ' ' + h + '" style="display:inline-block;max-width:100%;height:auto;">' + rects.join('') + '</svg>';
+}
+
+/**
+ * Render nội dung 1 tem vận đơn SPX (Single Airway Bill Card)
+ */
+function renderSingleAirwayBillBox(orderId, index, total) {
+  var detail = getOrderDetail(null, orderId);
   var order = detail.order;
   var items = detail.items;
   var shipment = detail.shipment || {};
@@ -2276,73 +2342,161 @@ function renderSpxAirwayBillHtml(orderId) {
   var inspection = getSystemSetting('ITEM_INSPECTION', 'VIEW_NO_TRY');
   var inspectionText = inspection === 'VIEW_TRY' ? 'CHO THỬ HÀNG' : (inspection === 'NO_VIEW' ? 'KHÔNG CHO XEM HÀNG' : 'CHO XEM HÀNG, KHÔNG THỬ');
   
-  var tracking = shipment.trackingNumber || ('SPX-' + order.orderCode);
-  var codStr = (Number(order.codAmount) || 0).toLocaleString('vi-VN') + ' đ';
+  var tracking = shipment.trackingNumber || ('SPX' + order.orderCode.replace(/\D/g, '') + 'VN');
+  var codStr = Number(order.codAmount) > 0 ? (Number(order.codAmount).toLocaleString('vi-VN') + ' đ') : '0 đ (KHÔNG THU TIỀN)';
+  var routeCode = order.spxAddressCode || resolveSpxAddressCode(order.province) || 'VN-STD';
   
   var itemsHtml = '';
+  var totalQuantity = 0;
   for (var i = 0; i < items.length; i++) {
     var it = items[i];
+    var q = Number(it.quantity) || 1;
+    totalQuantity += q;
     itemsHtml += '<tr>' +
-      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;font-size:12px;">' + (it.productName || it.modelCode) + ' (' + it.color + ' - Size ' + it.size + ')</td>' +
-      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;text-align:center;font-size:12px;font-weight:bold;">' + it.quantity + '</td>' +
+      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;font-size:12px;">' + 
+        '<strong>' + (it.productName || it.modelCode) + '</strong> - Màu ' + it.color + ' / Size ' + it.size + 
+        (it.sku ? (' <span style="font-size:10px;color:#666;">[' + it.sku + ']</span>') : '') +
+      '</td>' +
+      '<td style="padding:4px 6px;border-bottom:1px solid #ddd;text-align:center;font-size:13px;font-weight:900;">' + q + '</td>' +
     '</tr>';
   }
   
-  var html = '<!DOCTYPE html><html><head><meta charset="utf-8">' +
-    '<title>Tem In Vận Đơn - ' + tracking + '</title>' +
+  var barcodeSvg = generateCode128Svg(tracking, 48, 2);
+  var paginationText = total > 1 ? ('<span style="font-size:11px;color:#666;font-weight:normal;">(Kiện ' + index + '/' + total + ')</span>') : '';
+  
+  return '<div class="label-box">' +
+    '<div class="spx-header">' +
+      '<div class="spx-logo">SPX <span style="font-size:14px;color:#222;font-weight:700;">Express</span> ' + paginationText + '</div>' +
+      '<div class="spx-route">' + routeCode + '</div>' +
+    '</div>' +
+    '<div class="barcode-area">' +
+      barcodeSvg +
+      '<div class="tracking-text">' + tracking + '</div>' +
+      '<div class="order-code-text">Mã đơn shop: <strong>' + order.orderCode + '</strong></div>' +
+    '</div>' +
+    '<div class="section sender-section">' +
+      '<span class="sec-title">NGƯỜI GỬI:</span> ' + senderName + ' - ' + senderPhone + '<br>' +
+      '<span style="font-size:11px;color:#444;">' + senderAddress + '</span>' +
+    '</div>' +
+    '<div class="section receiver-section">' +
+      '<span class="sec-title">NGƯỜI NHẬN:</span> <strong style="font-size:14px;">' + order.customerName + '</strong> - <strong style="font-size:13px;">' + order.customerPhone + '</strong><br>' +
+      '<span style="font-size:12px;font-weight:600;color:#111;">' + order.addressDetail + ', ' + (order.ward ? order.ward + ', ' : '') + (order.district ? order.district + ', ' : '') + order.province + '</span>' +
+    '</div>' +
+    '<div class="cod-box">' +
+      '<div class="cod-title">TIỀN THU HỘ (COD)</div>' +
+      '<div class="cod-val">' + codStr + '</div>' +
+      '<div class="inspection-tag">CHỈ DẪN PHÁT: ' + inspectionText + '</div>' +
+    '</div>' +
+    '<div class="section items-section">' +
+      '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+        '<span class="sec-title">NỘI DUNG HÀNG (' + totalQuantity + ' ĐÔI / ' + items.length + ' DÒNG):</span>' +
+        '<span style="font-size:11px;color:#666;">KL: ' + (shipment.weightG || 800) + 'g</span>' +
+      '</div>' +
+      '<table style="width:100%;border-collapse:collapse;margin-top:4px;">' +
+        itemsHtml +
+      '</table>' +
+    '</div>' +
+    '<div class="section notes-section">' +
+      '<strong>Ghi chú đơn:</strong> ' + (order.notes || 'Hàng nguyên tem, khách kiểm tra đúng mẫu mã size trước khi nhận.') +
+    '</div>' +
+    '<div class="footer-sign">' +
+      '<div>Ngày in: ' + Utilities.formatDate(new Date(), CONFIG.TIMEZONE, "dd/MM/yyyy HH:mm") + '</div>' +
+      '<div>Chữ ký người nhận</div>' +
+    '</div>' +
+  '</div>';
+}
+
+/**
+ * Tạo tài liệu HTML in hàng loạt (Batch Airway Bill Document)
+ */
+function assembleBatchPrintDocument(cardsHtml, totalOrders) {
+  return '<!DOCTYPE html>' +
+    '<html><head><meta charset="utf-8">' +
+    '<title>SPX Airway Bills - In ' + totalOrders + ' Đơn Hàng Loạt</title>' +
     '<style>' +
-    'body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif; margin: 0; padding: 15px; color: #111; background: #fff; }' +
-    '.label-box { width: 100mm; min-height: 140mm; border: 2px solid #222; padding: 10px; margin: 0 auto; box-sizing: border-box; }' +
-    '.spx-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #222; padding-bottom: 8px; }' +
-    '.spx-logo { font-size: 26px; font-weight: 900; color: #EE4D2D; letter-spacing: -1px; }' +
-    '.spx-route { font-size: 20px; font-weight: 800; border: 2px solid #222; padding: 2px 8px; border-radius: 4px; }' +
-    '.barcode-area { text-align: center; padding: 8px 0; border-bottom: 2px solid #222; }' +
-    '.barcode-fake { font-family: monospace; letter-spacing: 5px; font-size: 22px; font-weight: bold; }' +
-    '.section { border-bottom: 1px solid #222; padding: 6px 0; font-size: 12px; }' +
-    '.cod-box { background: #fdf2f0; border: 2px dashed #EE4D2D; padding: 8px; text-align: center; margin: 8px 0; border-radius: 4px; }' +
-    '.cod-title { font-size: 13px; font-weight: bold; color: #666; }' +
-    '.cod-val { font-size: 24px; font-weight: 900; color: #EE4D2D; }' +
-    '@media print { body { padding: 0; } .label-box { border: 2px solid #000; } button { display: none; } }' +
+    '  * { box-sizing: border-box; }' +
+    '  body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 15px; color: #111; background: #eef2f5; }' +
+    '  .no-print-toolbar { position: sticky; top: 0; z-index: 9999; background: #fff; padding: 12px 20px; margin-bottom: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); display: flex; justify-content: space-between; align-items: center; }' +
+    '  .btn-print { background: #EE4D2D; color: #fff; border: none; padding: 10px 24px; border-radius: 6px; font-weight: 800; font-size: 15px; cursor: pointer; display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 6px rgba(238,77,45,0.4); }' +
+    '  .btn-print:hover { background: #d73211; }' +
+    '  .labels-container { display: flex; flex-direction: column; gap: 20px; align-items: center; }' +
+    '  .label-box { width: 100mm; min-height: 148mm; max-height: 148mm; border: 2px solid #111; padding: 8mm; margin: 0 auto; background: #fff; position: relative; display: flex; flex-direction: column; justify-content: space-between; page-break-after: always; break-after: page; box-shadow: 0 2px 8px rgba(0,0,0,0.1); }' +
+    '  .spx-header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #111; padding-bottom: 6px; }' +
+    '  .spx-logo { font-size: 24px; font-weight: 900; color: #EE4D2D; letter-spacing: -1px; }' +
+    '  .spx-route { font-size: 18px; font-weight: 900; border: 2px solid #111; padding: 2px 8px; border-radius: 4px; background: #f9f9f9; }' +
+    '  .barcode-area { text-align: center; padding: 6px 0; border-bottom: 2px solid #111; }' +
+    '  .tracking-text { font-size: 15px; font-weight: 900; letter-spacing: 1px; margin-top: 4px; }' +
+    '  .order-code-text { font-size: 11px; color: #555; }' +
+    '  .section { border-bottom: 1px solid #222; padding: 5px 0; font-size: 11px; line-height: 1.35; }' +
+    '  .sec-title { font-weight: 800; color: #444; font-size: 10px; margin-right: 4px; }' +
+    '  .cod-box { background: #FFF5F2; border: 2px dashed #EE4D2D; padding: 6px; text-align: center; margin: 6px 0; border-radius: 4px; }' +
+    '  .cod-title { font-size: 11px; font-weight: 800; color: #555; }' +
+    '  .cod-val { font-size: 22px; font-weight: 900; color: #EE4D2D; }' +
+    '  .inspection-tag { font-size: 10px; font-weight: 800; color: #222; margin-top: 2px; }' +
+    '  .items-section { flex-grow: 1; }' +
+    '  .footer-sign { display: flex; justify-content: space-between; font-size: 10px; color: #666; padding-top: 4px; }' +
+    '  @media print {' +
+    '    body { background: #fff; padding: 0; margin: 0; }' +
+    '    .no-print-toolbar { display: none !important; }' +
+    '    .labels-container { gap: 0; }' +
+    '    .label-box { border: 2px solid #000; box-shadow: none; margin: 0 auto; page-break-after: always; break-after: page; }' +
+    '    @page { size: 100mm 150mm; margin: 0; }' +
+    '  }' +
     '</style>' +
     '</head><body>' +
-    '<div style="text-align:center;margin-bottom:10px;"><button onclick="window.print()" style="padding:8px 16px;background:#EE4D2D;color:#fff;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">🖨️ In Ngay (Print)</button></div>' +
-    '<div class="label-box">' +
-      '<div class="spx-header">' +
-        '<div class="spx-logo">SPX <span style="font-size:14px;color:#333;font-weight:normal;">Express</span></div>' +
-        '<div class="spx-route">' + (order.spxAddressCode || 'VN-STD') + '</div>' +
+    '<div class="no-print-toolbar">' +
+      '<div>' +
+        '<strong style="font-size:16px;color:#EE4D2D;">SPX SHOE HUB - IN TEM ĐÓNG GÓI HÀNG LOẠT</strong>' +
+        '<div style="font-size:12px;color:#666;">Chuẩn bị in ' + totalOrders + ' phiếu vận đơn khổ A6 (100x150mm) cho máy in nhiệt.</div>' +
       '</div>' +
-      '<div class="barcode-area">' +
-        '<div class="barcode-fake">|||||||| ||||| |||||||| ||||</div>' +
-        '<div style="font-size:14px;font-weight:bold;margin-top:4px;">' + tracking + '</div>' +
-        '<div style="font-size:11px;color:#555;">Mã đơn: ' + order.orderCode + '</div>' +
-      '</div>' +
-      '<div class="section">' +
-        '<strong>GỬI TỪ:</strong> ' + senderName + ' - ' + senderPhone + '<br>' +
-        '<span style="font-size:11px;">' + senderAddress + '</span>' +
-      '</div>' +
-      '<div class="section">' +
-        '<strong>NGƯỜI NHẬN:</strong> <span style="font-size:14px;font-weight:bold;">' + order.customerName + '</span> - <strong>' + order.customerPhone + '</strong><br>' +
-        '<span style="font-size:12px;font-weight:600;">' + order.addressDetail + ', ' + (order.ward ? order.ward + ', ' : '') + (order.district ? order.district + ', ' : '') + order.province + '</span>' +
-      '</div>' +
-      '<div class="cod-box">' +
-        '<div class="cod-title">TIỀN THU HỘ (COD)</div>' +
-        '<div class="cod-val">' + codStr + '</div>' +
-        '<div style="font-size:11px;font-weight:bold;color:#333;margin-top:2px;">CHỈ DẪN: ' + inspectionText + '</div>' +
-      '</div>' +
-      '<div class="section">' +
-        '<strong>Nội dung hàng (' + items.length + ' món):</strong>' +
-        '<table style="width:100%;border-collapse:collapse;margin-top:4px;">' +
-          itemsHtml +
-        '</table>' +
-      '</div>' +
-      '<div style="padding-top:6px;font-size:11px;color:#555;">' +
-        '<strong>Ghi chú giao:</strong> ' + (order.notes || 'Không có') +
-      '</div>' +
+      '<button class="btn-print" onclick="window.print()">🖨️ IN TẤT CẢ ' + totalOrders + ' TEM (Ctrl+P)</button>' +
     '</div>' +
+    '<div class="labels-container">' +
+      cardsHtml.join('') +
+    '</div>' +
+    '<script>' +
+    '  window.onload = function() { setTimeout(function(){ window.print(); }, 800); };' +
+    '</script>' +
     '</body></html>';
-    
-  return html;
 }
+
+/**
+ * In 1 đơn lẻ
+ */
+function renderSpxAirwayBillHtml(orderId) {
+  var card = renderSingleAirwayBillBox(orderId, 1, 1);
+  return assembleBatchPrintDocument([card], 1);
+}
+
+/**
+ * In hàng loạt danh sách đơn hàng
+ */
+function renderBatchSpxAirwayBillHtml(orderIds) {
+  if (!orderIds || orderIds.length === 0) {
+    return '<html><body><h2 style="text-align:center;color:#666;margin-top:50px;">Không có đơn hàng nào được chọn để in tem.</h2></body></html>';
+  }
+  
+  var cardsHtml = [];
+  var now = getNowIsoString();
+  
+  for (var i = 0; i < orderIds.length; i++) {
+    var oid = orderIds[i];
+    try {
+      cardsHtml.push(renderSingleAirwayBillBox(oid, i + 1, orderIds.length));
+      // Tự động cập nhật trạng thái đã in tem cho đơn hàng
+      updateRowByKey(CONFIG.SHEETS.ORDERS, 'id', oid, {
+        shippingStatus: CONFIG.SHIPPING_STATUS.LABEL_PRINTED,
+        updatedAt: now
+      });
+    } catch (e) {
+      cardsHtml.push('<div class="label-box" style="padding:20px;color:red;">Lỗi tải đơn ' + oid + ': ' + e.message + '</div>');
+    }
+  }
+  
+  logAuditAction('BATCH_PRINT_AIRWAY_BILLS', 'Orders', orderIds.join(','), 'In tem vận đơn hàng loạt cho ' + orderIds.length + ' đơn hàng', 'Thủ kho / Sale');
+  return assembleBatchPrintDocument(cardsHtml, orderIds.length);
+}
+
 
 
 
@@ -4361,6 +4515,12 @@ function dispatchApiAction(action, payload, sessionToken) {
       return apiHandOverToSpx(sessionToken, payload.orderId);
     case 'GET_AIRWAY_BILL':
       return apiGetAirwayBillHtml(sessionToken, payload.orderId);
+    case 'GET_BATCH_AIRWAY_BILLS':
+      return apiGetBatchAirwayBillHtml(sessionToken, payload.orderIds);
+    case 'BATCH_CREATE_SHIPMENTS':
+      return apiBatchCreateShipments(sessionToken, payload.orderIds);
+    case 'BATCH_HANDOVER_SPX':
+      return apiBatchHandOverToSpx(sessionToken, payload.orderIds);
     case 'GET_RETURNS':
       return apiGetReturnsList(sessionToken);
     case 'PROCESS_RETURN_QC':
@@ -4623,6 +4783,49 @@ function apiGetAirwayBillHtml(sessionToken, orderId) {
   return apiCall(function() {
     requireAuth(sessionToken);
     return renderSpxAirwayBillHtml(orderId);
+  });
+}
+
+function apiGetBatchAirwayBillHtml(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireAuth(sessionToken);
+    return renderBatchSpxAirwayBillHtml(orderIds);
+  });
+}
+
+function apiBatchCreateShipments(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        requestShipmentCreation(sessionToken, list[i]);
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
+  });
+}
+
+function apiBatchHandOverToSpx(sessionToken, orderIds) {
+  return apiCall(function() {
+    requireRole(sessionToken, [CONFIG.ROLES.KHO, CONFIG.ROLES.ADMIN]);
+    var list = orderIds || [];
+    var successCount = 0;
+    var errors = [];
+    for (var i = 0; i < list.length; i++) {
+      try {
+        handOverToSpx(sessionToken, list[i]);
+        successCount++;
+      } catch (e) {
+        errors.push(list[i] + ': ' + e.message);
+      }
+    }
+    return { successCount: successCount, total: list.length, errors: errors };
   });
 }
 
