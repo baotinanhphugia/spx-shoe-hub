@@ -1,6 +1,6 @@
 // =============================================================
 // CODE.GS - TỔNG HỢP TOÀN BỘ BACKEND SPX SHOE HUB
-// Tự động xuất từ các module độc lập. Ngày tạo: 2026-10-31T12:20:51.598Z
+// Tự động xuất từ các module độc lập. Ngày tạo: 2026-11-01T01:49:35.008Z
 // =============================================================
 
 // -------------------------------------------------------------
@@ -855,6 +855,7 @@ function getSystemSetting(key, defaultValue) {
   if (key === 'SPX_APP_ID') return CONFIG.SPX.APP_ID;
   if (key === 'SPX_APP_SECRET') return CONFIG.SPX.APP_SECRET;
   if (key === 'SPX_MERCHANT_ID') return CONFIG.SPX.MERCHANT_ID;
+  if (key === 'SPX_COOKIE') return CONFIG.SPX.COOKIE;
   return defaultValue;
 }
 
@@ -5520,6 +5521,7 @@ function apiGetSettings(sessionToken) {
       SPX_BASE_URL: CONFIG.SPX.BASE_URL,
       SPX_APP_ID: CONFIG.SPX.APP_ID,
       SPX_MERCHANT_ID: CONFIG.SPX.MERCHANT_ID,
+      SPX_COOKIE: CONFIG.SPX.COOKIE,
       SENDER_NAME: CONFIG.DEFAULT_SHIPPING.SENDER_NAME,
       SENDER_PHONE: CONFIG.DEFAULT_SHIPPING.SENDER_PHONE,
       SENDER_ADDRESS: CONFIG.DEFAULT_SHIPPING.SENDER_ADDRESS

@@ -643,6 +643,7 @@ function getSystemSetting(key, defaultValue) {
   if (key === 'SPX_APP_ID') return CONFIG.SPX.APP_ID;
   if (key === 'SPX_APP_SECRET') return CONFIG.SPX.APP_SECRET;
   if (key === 'SPX_MERCHANT_ID') return CONFIG.SPX.MERCHANT_ID;
+  if (key === 'SPX_COOKIE') return CONFIG.SPX.COOKIE;
   return defaultValue;
 }
 

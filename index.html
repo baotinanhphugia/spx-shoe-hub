@@ -4018,6 +4018,7 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       document.getElementById('cfgSpxUrl').value = cfg.SPX_BASE_URL || 'https://spx.vn';
       document.getElementById('cfgSpxAppId').value = cfg.SPX_APP_ID || '102384205900430';
       document.getElementById('cfgSpxMerchantId').value = cfg.SPX_MERCHANT_ID || '15093594984';
+      if (document.getElementById('cfgSpxCookie')) document.getElementById('cfgSpxCookie').value = cfg.SPX_COOKIE || '';
       document.getElementById('cfgSenderName').value = cfg.SENDER_NAME || '';
       document.getElementById('cfgSenderPhone').value = cfg.SENDER_PHONE || '';
       document.getElementById('cfgSenderAddress').value = cfg.SENDER_ADDRESS || '';
@@ -4051,7 +4052,8 @@ SPXVN9876543210,650000,28000,622000"></textarea>
       SPX_MERCHANT_ID: document.getElementById('cfgSpxMerchantId').value.trim(),
       SENDER_NAME: document.getElementById('cfgSenderName').value.trim(),
       SENDER_PHONE: document.getElementById('cfgSenderPhone').value.trim(),
-      SENDER_ADDRESS: document.getElementById('cfgSenderAddress').value.trim()
+      SENDER_ADDRESS: document.getElementById('cfgSenderAddress').value.trim(),
+      SPX_COOKIE: (document.getElementById('cfgSpxCookie') ? document.getElementById('cfgSpxCookie').value.trim() : '')
     };
     var sec = document.getElementById('cfgSpxSecret').value.trim();
     if (sec && sec !== '********') payload.SPX_APP_SECRET = sec;
