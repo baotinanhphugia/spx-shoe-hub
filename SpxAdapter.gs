@@ -108,6 +108,18 @@ function calculatePickupTimeSlot() {
   return Math.floor(target.getTime() / 1000);
 }
 
+function normalizeSpxProvinceName(provinceName) {
+  var p = String(provinceName || '').trim();
+  if (!p) return 'Tỉnh Hưng Yên';
+  if (p.indexOf('Tỉnh') === 0 || p.indexOf('Thành phố') === 0) return p;
+  if (p.indexOf('TP ') === 0) return 'Thành phố ' + p.substring(3).trim();
+  var pLower = p.toLowerCase();
+  if (pLower.indexOf('hà nội') !== -1 || pLower.indexOf('hải phòng') !== -1 || pLower.indexOf('đà nẵng') !== -1 || pLower.indexOf('hồ chí minh') !== -1 || pLower.indexOf('cần thơ') !== -1) {
+    return 'Thành phố ' + p;
+  }
+  return 'Tỉnh ' + p;
+}
+
 function resolveSpxProvinceId(provinceName) {
   var p = String(provinceName || '').toLowerCase().trim();
   if (p.indexOf('hưng yên') !== -1) return 6100016;
@@ -357,9 +369,9 @@ RealSpxProvider.prototype.createShipment = function(params) {
           deliver_name: String(params.receiver.name || 'Khách nhận'),
           deliver_phone: cleanPhone,
           deliver_country: 'VN',
-          deliver_state: params.receiver.province || 'Tỉnh Hưng Yên',
+          deliver_state: normalizeSpxProvinceName(params.receiver.province),
           deliver_state_location_id: resolveSpxProvinceId(params.receiver.province),
-          deliver_city: params.receiver.district || params.receiver.ward || 'Xã Nghĩa Dân',
+          deliver_city: params.receiver.district || params.receiver.ward || CONFIG.DEFAULT_SHIPPING.SENDER_DISTRICT,
           deliver_city_location_id: resolveSpxDistrictId(params.receiver.province, params.receiver.district),
           deliver_post_code: '',
           deliver_detail_address: params.receiver.address || '',

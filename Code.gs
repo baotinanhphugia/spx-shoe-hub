@@ -1,6 +1,6 @@
 // =============================================================
 // CODE.GS - TỔNG HỢP TOÀN BỘ BACKEND SPX SHOE HUB
-// Tự động xuất từ các module độc lập. Ngày tạo: 2026-11-01T01:49:35.008Z
+// Tự động xuất từ các module độc lập. Ngày tạo: 2026-11-01T04:20:21.762585Z
 // =============================================================
 
 // -------------------------------------------------------------
@@ -150,7 +150,7 @@ const CONFIG = {
     APP_ID: '102384205900430',       // Mã người dùng (User ID)
     APP_SECRET: '8d1aefec-ba63-4a34-984b-26fc1d5054ea', // Secret Key
     MERCHANT_ID: '15093594984',      // ID tài khoản (Account ID)
-    COOKIE: 'spx_token=ffY01SJcbz7YbaqH3FTB0JMQIZHgDwDQWiP6tDvCzDQugXaIQDWRlIf1TW5qtmXr; spx_sid=3bc86c05279940a853cb2b5d4a6748dabfcbfe908562e6789136674ae48c96bd; login_type=1; login_status=true; nss_cid=VN;',
+    COOKIE: '_gcl_au=1.1.2057118015.1791775317; _med=refer; _ga=GA1.1.17196625.1791775318; _fbp=fb.1.1791775319214.71229957567611631; spx_token=ffY01SJcbz7YbaqH3FTB0JMQIZHgDwDQWiP6tDvCzDQugXaIQDWRlIf1TW5qtmXr; spx_sid=3bc86c05279940a853cb2b5d4a6748dabfcbfe908562e6789136674ae48c96bd; login_type=1; login_status=true; nss_sys_type=true; nss_cid=VN; _ga_0LFKSTZTGT=GS2.1.s1793499206$o37$g1$t1793500863$j60$l0$h0',
     TIMEOUT_MS: 20000
   },
 
@@ -3687,6 +3687,18 @@ function calculatePickupTimeSlot() {
   return Math.floor(target.getTime() / 1000);
 }
 
+function normalizeSpxProvinceName(provinceName) {
+  var p = String(provinceName || '').trim();
+  if (!p) return 'Tỉnh Hưng Yên';
+  if (p.indexOf('Tỉnh') === 0 || p.indexOf('Thành phố') === 0) return p;
+  if (p.indexOf('TP ') === 0) return 'Thành phố ' + p.substring(3).trim();
+  var pLower = p.toLowerCase();
+  if (pLower.indexOf('hà nội') !== -1 || pLower.indexOf('hải phòng') !== -1 || pLower.indexOf('đà nẵng') !== -1 || pLower.indexOf('hồ chí minh') !== -1 || pLower.indexOf('cần thơ') !== -1) {
+    return 'Thành phố ' + p;
+  }
+  return 'Tỉnh ' + p;
+}
+
 function resolveSpxProvinceId(provinceName) {
   var p = String(provinceName || '').toLowerCase().trim();
   if (p.indexOf('hưng yên') !== -1) return 6100016;
@@ -3936,9 +3948,9 @@ RealSpxProvider.prototype.createShipment = function(params) {
           deliver_name: String(params.receiver.name || 'Khách nhận'),
           deliver_phone: cleanPhone,
           deliver_country: 'VN',
-          deliver_state: params.receiver.province || 'Tỉnh Hưng Yên',
+          deliver_state: normalizeSpxProvinceName(params.receiver.province),
           deliver_state_location_id: resolveSpxProvinceId(params.receiver.province),
-          deliver_city: params.receiver.district || params.receiver.ward || 'Xã Nghĩa Dân',
+          deliver_city: params.receiver.district || params.receiver.ward || CONFIG.DEFAULT_SHIPPING.SENDER_DISTRICT,
           deliver_city_location_id: resolveSpxDistrictId(params.receiver.province, params.receiver.district),
           deliver_post_code: '',
           deliver_detail_address: params.receiver.address || '',

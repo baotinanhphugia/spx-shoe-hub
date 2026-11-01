@@ -142,7 +142,7 @@ const CONFIG = {
     APP_ID: '102384205900430',       // Mã người dùng (User ID)
     APP_SECRET: '8d1aefec-ba63-4a34-984b-26fc1d5054ea', // Secret Key
     MERCHANT_ID: '15093594984',      // ID tài khoản (Account ID)
-    COOKIE: 'spx_token=ffY01SJcbz7YbaqH3FTB0JMQIZHgDwDQWiP6tDvCzDQugXaIQDWRlIf1TW5qtmXr; spx_sid=3bc86c05279940a853cb2b5d4a6748dabfcbfe908562e6789136674ae48c96bd; login_type=1; login_status=true; nss_cid=VN;',
+    COOKIE: '_gcl_au=1.1.2057118015.1791775317; _med=refer; _ga=GA1.1.17196625.1791775318; _fbp=fb.1.1791775319214.71229957567611631; spx_token=ffY01SJcbz7YbaqH3FTB0JMQIZHgDwDQWiP6tDvCzDQugXaIQDWRlIf1TW5qtmXr; spx_sid=3bc86c05279940a853cb2b5d4a6748dabfcbfe908562e6789136674ae48c96bd; login_type=1; login_status=true; nss_sys_type=true; nss_cid=VN; _ga_0LFKSTZTGT=GS2.1.s1793499206$o37$g1$t1793500863$j60$l0$h0',
     TIMEOUT_MS: 20000
   },
 
